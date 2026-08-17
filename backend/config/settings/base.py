@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(BASE_DIR / '.env')
+load_dotenv(BASE_DIR / '.env', override=True)
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'development-only-change-me')
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
 ALLOWED_HOSTS = [item.strip() for item in os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if item.strip()]

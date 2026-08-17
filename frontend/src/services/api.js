@@ -23,14 +23,22 @@ async function refreshAccessToken() {
 
 export async function request(path, options = {}, retried = false) {
   const token = localStorage.getItem('rise_access_token')
+  const hadSession = Boolean(token || localStorage.getItem('rise_refresh_token'))
   const headers = new Headers(options.headers || {})
   if (!(options.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   if (token) headers.set('Authorization', `Bearer ${token}`)
   let response
   try { response = await fetch(`${API_URL}${path}`, { ...options, headers, credentials: 'include' }) } catch { throw new ApiError(0, "RISE can't reach the server right now. Please try again.") }
   if (response.status === 401 && !retried && await refreshAccessToken()) return request(path, options, true)
-  if (response.status === 401 && !retried) { localStorage.removeItem('rise_access_token'); localStorage.removeItem('rise_refresh_token'); window.dispatchEvent(new CustomEvent('rise:auth-expired')) }
-  if (!response.ok) throw new ApiError(response.status, friendlyMessage(response.status))
+  if (response.status === 401 && !retried) {
+    localStorage.removeItem('rise_access_token')
+    localStorage.removeItem('rise_refresh_token')
+    if (hadSession) window.dispatchEvent(new CustomEvent('rise:auth-expired'))
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => null)
+    throw new ApiError(response.status, data?.detail || friendlyMessage(response.status))
+  }
   return response.status === 204 ? null : response.json()
 }
 

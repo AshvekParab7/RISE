@@ -1,17 +1,9 @@
 import { authService } from './authService'
-import { googleService } from './googleService'
 
 window.addEventListener('rise:auth-expired', () => window.location.assign('/login'))
 
 document.addEventListener('click', event => {
-  const googleButton = event.target.closest('.auth-card .google-button')
-  if (googleButton) {
-    event.preventDefault()
-    event.stopPropagation()
-    googleService.connect().catch(() => { googleButton.dataset.backendAuth = '' })
-    return
-  }
-  const button = event.target.closest('.auth-card .full')
+  const button = event.target.closest('.auth-card .button-primary.full')
   if (!button || button.dataset.backendAuth === 'pending') return
   event.preventDefault()
   event.stopPropagation()

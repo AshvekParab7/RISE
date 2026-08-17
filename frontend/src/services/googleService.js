@@ -1,7 +1,7 @@
-import { get, remove } from './api'
+import { api, get, remove } from './api'
 
 export const googleService = {
   getConnection: () => get('/integrations/google/'),
-  connect: async () => { const response = await get('/integrations/google/start/'); window.location.assign(response.authorization_url); return response },
+  connect: () => window.location.assign(`${api.url}/integrations/google/start/?redirect=1`),
   disconnect: () => remove('/integrations/google/'),
 }
