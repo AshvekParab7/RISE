@@ -38,7 +38,10 @@ class GoogleOAuthStartView(APIView):
             if integration in ('classroom', 'calendar') and not request.user.is_authenticated:
                 return Response({'detail': 'Authentication is required before connecting an integration.'}, status=status.HTTP_401_UNAUTHORIZED)
             extra_scopes = CLASSROOM_SCOPES if integration == 'classroom' else CALENDAR_SCOPES if integration == 'calendar' else ()
-            return Response({'authorization_url': authorization_url(request, extra_scopes)})
+            url = authorization_url(request, extra_scopes)
+            if request.query_params.get('redirect') == '1':
+                return HttpResponseRedirect(url)
+            return Response({'authorization_url': url})
         except ImproperlyConfigured:
             return Response({'detail': 'Google OAuth is not configured.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 

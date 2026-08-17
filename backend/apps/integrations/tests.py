@@ -45,6 +45,15 @@ class GoogleOAuthTests(APITestCase):
         self.assertTrue(self.client.session.get('google_oauth_state'))
         self.assertEqual(response.data['authorization_url'], 'https://accounts.google.com/o/oauth2/v2/auth?state=test')
 
+    @override_settings(GOOGLE_CLIENT_ID='client-id', GOOGLE_CLIENT_SECRET='client-secret')
+    @patch('apps.integrations.services.google_oauth.build_flow')
+    def test_browser_start_redirects_to_google_and_preserves_state(self, build_flow):
+        flow = Mock(); flow.code_verifier = 'test-verifier'; flow.authorization_url.return_value = ('https://accounts.google.com/o/oauth2/v2/auth?state=test', None); build_flow.return_value = flow
+        response = self.client.get('/api/integrations/google/start/?redirect=1')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], 'https://accounts.google.com/o/oauth2/v2/auth?state=test')
+        self.assertTrue(self.client.session.get('google_oauth_state'))
+
     def test_invalid_state_and_missing_code_are_rejected(self):
         session = self.client.session
         session['google_oauth_state'] = 'expected'
