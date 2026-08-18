@@ -73,7 +73,10 @@ def exchange_callback(request):
         flow.fetch_token(code=code)
         logger.warning('Google OAuth callback token_exchange=success code_verifier_present=%s', bool(code_verifier))
     except Exception as exc:
-        logger.warning('Google OAuth callback token exchange failed: error_type=%s code_verifier_present=%s', type(exc).__name__, bool(code_verifier))
+        safe_message = str(exc).replace(settings.GOOGLE_CLIENT_ID, '[client_id]').replace(settings.GOOGLE_CLIENT_SECRET, '[client_secret]')[:240]
+        response = getattr(exc, 'response', None)
+        response_status = getattr(response, 'status_code', None)
+        logger.warning('Google OAuth callback token exchange failed: error_type=%s message=%s http_status=%s code_verifier_present=%s', type(exc).__name__, safe_message, response_status, bool(code_verifier))
         return HttpResponseBadRequest('Google authorization could not be completed.')
     try:
         credentials = flow.credentials

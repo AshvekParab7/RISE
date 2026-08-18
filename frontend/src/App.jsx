@@ -3,7 +3,6 @@ import ProductApp from './RISEProduct'
 import TestRunner from './TestRunner'
 import { AuthProvider } from './context/AuthContext'
 import { BackendGate } from './context/BackendGate'
-import './services/authBridge'
 
 export default function AppEntry() {
 	const oauth = new URLSearchParams(window.location.hash.slice(1))

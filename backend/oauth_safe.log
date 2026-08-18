@@ -1,0 +1,7 @@
+Google OAuth state generated: state_present=True state_length=43 session_key_present=True
+Google OAuth state generated: state_present=True state_length=43 session_key_present=True
+Google OAuth callback input: code_present=True state_present=True state_valid=True session_key_present=True
+Google OAuth callback token exchange failed: error_type=Warning message=Scope has changed from "email profile openid" to "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid". http_status=None code_verifier_present=True
+Google OAuth state generated: state_present=True state_length=43 session_key_present=True
+Google OAuth callback input: code_present=True state_present=True state_valid=True session_key_present=True
+Google OAuth callback token exchange failed: error_type=Warning message=Scope has changed from "email profile openid" to "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid". http_status=None code_verifier_present=True

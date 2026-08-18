@@ -1,4 +1,9 @@
-export const mockStudent = { name: 'User Mehta', semester: 'Semester 5 · Computer Engineering', level: 12, xp: 1240, streak: 7 }
+const storedUser = typeof localStorage !== 'undefined' ? JSON.parse(localStorage.getItem('rise_user') || 'null') : null
+const storedName = storedUser ? [storedUser.first_name, storedUser.last_name].filter(Boolean).join(' ') || storedUser.email?.split('@')[0] : ''
+const studentName = storedName || 'User Mehta'
+const storedAvatar = storedUser?.avatar_url || (typeof localStorage !== 'undefined' ? localStorage.getItem('rise_profile_photo') : '')
+if (typeof document !== 'undefined' && storedAvatar) document.documentElement.style.setProperty('--rise-avatar-url', `url(${JSON.stringify(storedAvatar)})`)
+export const mockStudent = { name: studentName, initials: studentName.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase(), semester: 'Semester 5 · Computer Engineering', level: 12, xp: 1240, streak: 7 }
 
 export const mockSubjects = [
   { id: 'cn', name: 'Computer Networks', short: 'CN', color: '#9733EE', mastery: 52, risk: 91, priority: 'HIGH', exam: 'Aug 25', next: 'Transport Layer', units: [100, 85, 60, 20, 0] },

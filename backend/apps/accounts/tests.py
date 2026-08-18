@@ -8,6 +8,7 @@ from apps.academics.models import CollegeClass, Exam, Semester, Subject, Syllabu
 from apps.resources.models import Resource
 from apps.tasks.models import StudySession, Task
 from .models import User
+from .firebase_tests import *
 
 class CoreApiTests(APITestCase):
     def setUp(self):

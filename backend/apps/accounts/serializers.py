@@ -5,7 +5,7 @@ from .models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'avatar', 'created_at', 'updated_at')
+        fields = ('id', 'email', 'first_name', 'last_name', 'avatar', 'avatar_url', 'created_at', 'updated_at')
         read_only_fields = ('id', 'created_at', 'updated_at')
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -25,3 +25,6 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('Invalid email or password.')
         attrs['user'] = user
         return attrs
+
+class FirebaseLoginSerializer(serializers.Serializer):
+    id_token = serializers.CharField(write_only=True, trim_whitespace=True)

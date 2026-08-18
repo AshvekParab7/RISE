@@ -20,6 +20,8 @@ class GoogleConnectionView(APIView):
     def get(self, request):
         connection = GoogleConnection.objects.filter(user=request.user, is_active=True).first()
         if not connection:
+            if request.user.firebase_uid:
+                return Response({'connected': True, 'provider': 'FIREBASE', 'email': request.user.email, 'display_name': f'{request.user.first_name} {request.user.last_name}'.strip(), 'picture': request.user.avatar_url, 'scopes': ['openid', 'profile', 'email'], 'connected_at': request.user.created_at, 'last_synced_at': None, 'is_active': True})
             return Response({'connected': False, 'email': None, 'display_name': None, 'picture': None, 'scopes': [], 'connected_at': None, 'last_synced_at': None, 'is_active': False})
         return Response(GoogleConnectionSerializer(connection).data)
     @extend_schema(request=None, responses={204: None})

@@ -1,0 +1,6 @@
+.profile .avatar,
+.top-actions .avatar.small {
+  background-image: var(--rise-avatar-url, none);
+  background-size: cover;
+  background-position: center;
+}

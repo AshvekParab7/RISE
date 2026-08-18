@@ -3,3 +3,5 @@ backend/.env
 backend/.venv/
 **/__pycache__/
 *.py[cod]
+firebase-service-account.json
+*.json
