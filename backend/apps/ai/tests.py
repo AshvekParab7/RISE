@@ -80,4 +80,19 @@ class AiLayerTests(TestCase):
         self.assertFalse(result['related'])
         self.assertIn('outside the uploaded study material', result['answer'])
 
+    @override_settings(OPENAI_API_KEY='test-key')
+    @patch('apps.ai.services.planner.generate_text', return_value='{"related": true, "reply": "What subject is the exam for?", "question": {"id": "subject", "text": "What subject is the exam for?", "options": []}, "ready": false, "plan": []}')
+    def test_planner_returns_ai_generated_follow_up(self, generate):
+        response = self.client.post('/api/ai/planner/', {'message': 'I have an exam next week', 'calendar': [{'day': 'MON 17', 'events': []}]}, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['question']['id'], 'subject')
+        self.assertIn('latest_message', generate.call_args.args[1])
+
+    @override_settings(OPENAI_API_KEY='test-key')
+    @patch('apps.ai.services.planner.generate_text', return_value='{"related": false, "reply": "I can only help with study planning.", "question": null, "ready": false, "plan": []}')
+    def test_planner_rejects_unrelated_requests(self, generate):
+        response = self.client.post('/api/ai/planner/', {'message': 'Tell me a joke'}, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['related'])
+
 from .adaptive_tests import AdaptiveAssessmentApiTests
