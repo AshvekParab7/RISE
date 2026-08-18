@@ -7,10 +7,9 @@ from drf_spectacular.utils import extend_schema
 from apps.academics.models import Subject, Topic
 from apps.resources.models import Resource
 from .models import GeneratedQuestion, GeneratedTest, TestSubmission, TutorConversation
-from .serializers import PlannerRequestSerializer, TestGenerateSerializer, TestSubmissionSerializer, TutorConversationSerializer, TutorRequestSerializer
+from .serializers import TestGenerateSerializer, TestSubmissionSerializer, TutorConversationSerializer, TutorRequestSerializer
 from .services.llm import AIUnavailable, AIProviderError
 from .services.tutor import pdf_tutor_answer, public_tutor_answer, tutor_answer
-from .services.planner import planner_turn
 from .services.assessment_service import generate_assessment
 from .services.mastery_engine import apply_assessment_results
 from apps.intelligence.services.recommendation_engine import build_context, build_daily_plan, build_next_action
@@ -31,19 +30,6 @@ class TutorView(APIView):
         if data.get('conversation_id'): conversation = get_object_or_404(TutorConversation, id=data['conversation_id'], student=request.user)
         try: return Response(tutor_answer(request.user, data['message'], data.get('subject_id'), data.get('topic_id'), data.get('resource_ids'), conversation))
         except Exception: return Response({'answer': 'RISE could not complete that tutor request right now.', 'sources': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-class PlannerView(APIView):
-    permission_classes = (permissions.AllowAny,)
-
-    @extend_schema(request=PlannerRequestSerializer, responses=OpenApiTypes.OBJECT)
-    def post(self, request):
-        serializer = PlannerRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        try:
-            return Response(planner_turn(data['message'], data['history'], data['calendar'], data['progress']))
-        except (AIUnavailable, AIProviderError):
-            return Response({'detail': 'RISE Planner is temporarily unavailable. Please try again shortly.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 class ConversationListView(APIView):
     permission_classes = (permissions.IsAuthenticated,)

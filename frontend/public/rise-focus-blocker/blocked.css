@@ -1,7 +1,0 @@
-:root { font-family: Arial, sans-serif; color: #24212c; background: #f8f7fb; }
-body { min-height: 100vh; margin: 0; display: grid; place-items: center; }
-.card { width: min(420px, calc(100% - 48px)); padding: 42px 30px; text-align: center; background: #fff; border: 1px solid #eae7f0; box-shadow: 0 18px 50px rgba(51, 32, 72, .08); }
-.mark { width: 62px; height: 62px; margin: 0 auto 20px; display: grid; place-items: center; border-radius: 50%; background: #fff0f0; color: #e66b71; font-size: 28px; font-weight: 700; }
-p { color: #9733ee; font-size: 11px; letter-spacing: 1.4px; font-weight: 700; }
-h1 { margin: 0 0 10px; font-size: 30px; }
-span { color: #817d8b; font-size: 14px; line-height: 1.6; }
