@@ -1,0 +1,275 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>RISE - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-surface-variant": "#48464b",
+                        "on-primary-fixed": "#1c1a23",
+                        "on-secondary-fixed-variant": "#464650",
+                        "secondary-fixed": "#e3e1ee",
+                        "tertiary-fixed": "#eae2cf",
+                        "inverse-surface": "#2b3231",
+                        "primary-container": "#37353e",
+                        "surface-tint": "#605d67",
+                        "surface": "#f4fbfa",
+                        "secondary-container": "#e3e1ee",
+                        "surface-container-low": "#eef5f4",
+                        "on-tertiary-fixed": "#1f1b10",
+                        "inverse-primary": "#c9c4d0",
+                        "tertiary": "#242115",
+                        "surface-variant": "#dde4e3",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#1a1b24",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-container": "#a19da8",
+                        "primary-fixed-dim": "#c9c4d0",
+                        "primary-fixed": "#e5e0ec",
+                        "surface-dim": "#d4dbda",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#f4fbfa",
+                        "on-secondary-container": "#64636e",
+                        "primary": "#212028",
+                        "outline-variant": "#c9c5cb",
+                        "on-tertiary-container": "#a59f8e",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "background": "#f4fbfa",
+                        "inverse-on-surface": "#ebf2f1",
+                        "error": "#ba1a1a",
+                        "on-background": "#161d1d",
+                        "on-primary-fixed-variant": "#48454f",
+                        "secondary-fixed-dim": "#c7c5d1",
+                        "on-error-container": "#93000a",
+                        "surface-container": "#e8efee",
+                        "surface-container-highest": "#dde4e3",
+                        "on-surface": "#161d1d",
+                        "outline": "#79767c",
+                        "tertiary-container": "#3a3629",
+                        "on-error": "#ffffff",
+                        "surface-container-high": "#e3eae8",
+                        "secondary": "#5e5d68",
+                        "on-tertiary-fixed-variant": "#4b4739",
+                        "tertiary-fixed-dim": "#cdc6b4"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gutter": "24px",
+                        "section-margin": "64px",
+                        "unit": "8px",
+                        "container-padding": "32px",
+                        "stack-gap": "16px"
+                    },
+                    fontFamily: {
+                        "headline-lg-mobile": ["Merriweather"],
+                        "label-sm": ["Inter"],
+                        "headline-lg": ["Merriweather"],
+                        "label-md": ["Inter"],
+                        "body-md": ["Inter"],
+                        "display-lg": ["Merriweather"],
+                        "headline-md": ["Merriweather"],
+                        "body-lg": ["Inter"]
+                    },
+                    fontSize: {
+                        "headline-lg-mobile": ["28px", { "lineHeight": "1.3", "fontWeight": "700" }],
+                        "label-sm": ["12px", { "lineHeight": "1.2", "fontWeight": "500" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.3", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "1.2", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "1.4", "fontWeight": "700" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .clay-outer {
+            box-shadow: inset 4px 4px 8px rgba(255, 255, 255, 0.6), inset -4px -4px 8px rgba(0, 0, 0, 0.05), 20px 20px 40px rgba(168, 178, 177, 0.4);
+        }
+        .clay-inset {
+            box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.1), inset -4px -4px 8px rgba(255, 255, 255, 0.6);
+        }
+        .clay-toggle {
+            box-shadow: inset 2px 2px 4px rgba(0, 0, 0, 0.1), inset -2px -2px 4px rgba(255, 255, 255, 0.6);
+        }
+        .clay-button {
+            box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.4), 8px 8px 16px rgba(168, 178, 177, 0.3);
+            transition: all 0.2s ease;
+        }
+        .clay-button:active {
+            transform: translateY(2px);
+            box-shadow: inset 2px 2px 4px rgba(255, 255, 255, 0.2), 4px 4px 8px rgba(168, 178, 177, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-screen w-64 rounded-r-lg shadow-[30px_0_50px_-15px_rgba(168,178,177,0.3)] bg-surface p-gutter gap-section-margin flex-shrink-0 z-10 sticky top-0">
+<div class="flex items-center gap-stack-gap">
+<img alt="User profile photo" class="w-10 h-10 rounded-full clay-outer" data-alt="A small, soft-edged circular avatar portrait of an academic professional in a bright, modern light-mode setting. Muted color palette with sophisticated soft shadows." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAUBRUW1KKKt67dsTFbF3_4JHFh80T3CjMKaBwaO0ki0AHBwoeGgjfnnNCGLRs5RSwKrJJHlMdW9SJgI8rdUS--QStcwUjjg9z5OXn2ZWbO9s2Bl1q9XBId9YSi0VTn_BuNt1sJqPmbdbSkgTKKThg-H8SWHx_RuSBwbloP9K0Xc03Ay3bF5vfu3LMVNkXRt6zIKEd5eK6QmHpX6hV0ttVFPocB6CBthCpC4F1YyCPphsByp7Eckim5">
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary">RISE</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Academic Intelligence</p>
+</div>
+</div>
+<button class="w-full bg-primary-container text-on-primary font-label-md text-label-md py-3 rounded-full clay-button">
+            New Study Session
+        </button>
+<div class="flex-grow flex flex-col gap-2">
+<!-- Inactive Navigation Links -->
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 rounded-full hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 rounded-full hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">calendar_today</span>
+<span class="font-label-md text-label-md">Timetable</span>
+</a>
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 rounded-full hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">psychology</span>
+<span class="font-label-md text-label-md">Study Coach</span>
+</a>
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 rounded-full hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">analytics</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+</div>
+<div class="flex flex-col gap-2">
+<!-- Active Navigation Link -->
+<a class="flex items-center gap-stack-gap bg-secondary-container text-primary rounded-full px-4 py-3 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.1)] active:scale-[0.98] active:shadow-inner transition-all duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 rounded-full hover:scale-[1.02] transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">help</span>
+<span class="font-label-md text-label-md">Support</span>
+</a>
+</div>
+</nav>
+<!-- Main Canvas -->
+<main class="flex-grow p-gutter md:p-section-margin overflow-y-auto">
+<!-- TopAppBar (Mobile & Contextual Desktop) -->
+<header class="flex justify-between items-center w-full mb-section-margin bg-transparent">
+<div>
+<h2 class="font-display-lg text-display-lg text-primary">Settings</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">Manage your academic profile and preferences.</p>
+</div>
+<div class="flex gap-4">
+<button class="w-12 h-12 rounded-full clay-outer flex items-center justify-center text-primary-container hover:scale-[1.02] transition-transform">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-12 h-12 rounded-full clay-outer flex items-center justify-center text-primary-container hover:scale-[1.02] transition-transform">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Content Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Profile Section (Left Column) -->
+<div class="lg:col-span-5 flex flex-col gap-8">
+<section class="bg-surface-container-lowest rounded-lg p-container-padding clay-outer">
+<h3 class="font-headline-md text-headline-md text-primary mb-6">Profile</h3>
+<div class="flex items-center gap-6 mb-8">
+<img alt="Profile avatar" class="w-24 h-24 rounded-full clay-outer" data-alt="A highly detailed soft-focus portrait of a student avatar in a bright, modern light-mode setting. Soft, diffuse lighting highlights the rounded, clay-like features." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAL2bcfajrxkSsK5oRv6hc0OdM6O0pEtOpHwCnYWcOfUbD20XPkZy9qR-FUWSvnBX1F7KTqBXyTDqDo8mdDH_erd5w9tNN1IkEkPLcGaOpZwXBLXCA-a9rG6_S-8SiQkQ9FVP1pZiTMtf1qXvXAaG8YPN9hXl8cwF4ahzlBdbVuoXAqA2l1Pj7LP3ZBuBkobSiplvpNwjPj6TPAW81njGBjVlvtA28jgYMyOWrGpM_Go5psTmbdVniU">
+<div>
+<button class="bg-surface-variant text-on-surface font-label-md text-label-md py-2 px-4 rounded-full clay-button mb-2">Change Avatar</button>
+<p class="font-label-sm text-label-sm text-on-surface-variant">JPG, GIF or PNG. Max 2MB.</p>
+</div>
+</div>
+<div class="flex flex-col gap-6">
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-2 ml-2">Full Name</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 font-body-md text-primary clay-inset focus:ring-0 focus:outline-none" type="text" value="Jane Doe">
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-2 ml-2">Academic Email</label>
+<input class="w-full bg-surface-container-low border-none rounded-lg p-4 font-body-md text-primary clay-inset focus:ring-0 focus:outline-none" type="email" value="jane.doe@university.edu">
+</div>
+</div>
+</section>
+</div>
+<!-- Preferences Section (Right Column) -->
+<div class="lg:col-span-7 flex flex-col gap-8">
+<section class="bg-surface-container-lowest rounded-lg p-container-padding clay-outer">
+<h3 class="font-headline-md text-headline-md text-primary mb-6">Study Preferences</h3>
+<div class="flex flex-col gap-8">
+<!-- Slider Control -->
+<div>
+<div class="flex justify-between items-center mb-4 ml-2 mr-2">
+<label class="font-label-md text-label-md text-on-surface-variant">Focus Duration (Minutes)</label>
+<span class="font-headline-md text-headline-md text-primary">45</span>
+</div>
+<div class="relative h-4 bg-surface-container-low rounded-full clay-inset flex items-center px-1">
+<div class="absolute h-2 bg-secondary-container rounded-full left-1 w-3/4"></div>
+<div class="absolute w-6 h-6 bg-[#715A5A] rounded-full shadow-md left-3/4 transform -translate-x-1/2 cursor-pointer clay-button"></div>
+</div>
+</div>
+<hr class="border-t border-surface-variant opacity-50">
+<!-- Verbosity Control -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface-variant mb-4 ml-2">AI Coach Verbosity</label>
+<div class="grid grid-cols-3 gap-4">
+<button class="py-3 px-4 rounded-lg bg-surface-container-low text-on-surface-variant font-label-md text-label-md clay-button">Concise</button>
+<button class="py-3 px-4 rounded-lg bg-[#715A5A] text-white font-label-md text-label-md clay-button">Balanced</button>
+<button class="py-3 px-4 rounded-lg bg-surface-container-low text-on-surface-variant font-label-md text-label-md clay-button">Detailed</button>
+</div>
+</div>
+</div>
+</section>
+<section class="bg-surface-container-lowest rounded-lg p-container-padding clay-outer">
+<h3 class="font-headline-md text-headline-md text-primary mb-6">Notifications</h3>
+<div class="flex flex-col gap-6">
+<!-- Toggles -->
+<div class="flex justify-between items-center">
+<div>
+<h4 class="font-label-md text-label-md text-primary">Session Reminders</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Get notified 15 minutes before a study block.</p>
+</div>
+<div class="w-14 h-8 bg-surface-container-low rounded-full clay-inset flex items-center p-1 cursor-pointer">
+<div class="w-6 h-6 bg-[#715A5A] rounded-full clay-button transform translate-x-6 transition-transform"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<div>
+<h4 class="font-label-md text-label-md text-primary">Weekly Analytics</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Receive a summary of your study performance.</p>
+</div>
+<div class="w-14 h-8 bg-surface-container-low rounded-full clay-inset flex items-center p-1 cursor-pointer">
+<div class="w-6 h-6 bg-[#715A5A] rounded-full clay-button transform translate-x-6 transition-transform"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<div>
+<h4 class="font-label-md text-label-md text-primary">Goal Alerts</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Notifications when you reach a milestone.</p>
+</div>
+<div class="w-14 h-8 bg-surface-container-low rounded-full clay-inset flex items-center p-1 cursor-pointer">
+<div class="w-6 h-6 bg-surface-variant rounded-full clay-button transform translate-x-0 transition-transform"></div>
+</div>
+</div>
+</div>
+</section>
+<div class="flex justify-end mt-4">
+<button class="bg-primary-container text-on-primary font-label-md text-label-md py-4 px-8 rounded-full clay-button">
+                        Save Changes
+                    </button>
+</div>
+</div>
+</div>
+</main>
+</body></html>

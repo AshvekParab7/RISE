@@ -1,0 +1,297 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>RISE Study Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Merriweather:wght@700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-container": "#a19da8",
+                        "surface-container-low": "#eef5f4",
+                        "on-background": "#161d1d",
+                        "secondary": "#5e5d68",
+                        "tertiary": "#242115",
+                        "outline-variant": "#c9c5cb",
+                        "on-secondary-container": "#64636e",
+                        "secondary-fixed": "#e3e1ee",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed-dim": "#c7c5d1",
+                        "surface-container": "#e8efee",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#37353e",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed-dim": "#cdc6b4",
+                        "on-tertiary-fixed": "#1f1b10",
+                        "background": "#f4fbfa",
+                        "surface-bright": "#f4fbfa",
+                        "on-secondary-fixed": "#1a1b24",
+                        "on-primary-fixed": "#1c1a23",
+                        "on-tertiary-container": "#a59f8e",
+                        "surface-tint": "#605d67",
+                        "primary": "#212028",
+                        "tertiary-container": "#3a3629",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#e3e1ee",
+                        "on-surface-variant": "#48464b",
+                        "inverse-surface": "#2b3231",
+                        "surface-variant": "#dde4e3",
+                        "on-secondary-fixed-variant": "#464650",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#48454f",
+                        "on-tertiary-fixed-variant": "#4b4739",
+                        "outline": "#79767c",
+                        "inverse-on-surface": "#ebf2f1",
+                        "primary-fixed-dim": "#c9c4d0",
+                        "tertiary-fixed": "#eae2cf",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#dde4e3",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#d4dbda",
+                        "on-surface": "#161d1d",
+                        "surface-container-high": "#e3eae8",
+                        "primary-fixed": "#e5e0ec",
+                        "inverse-primary": "#c9c4d0",
+                        "surface": "#f4fbfa"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gutter": "24px",
+                        "section-margin": "64px",
+                        "unit": "8px",
+                        "stack-gap": "16px",
+                        "container-padding": "32px"
+                    },
+                    fontFamily: {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Merriweather"],
+                        "label-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Merriweather"],
+                        "headline-md": ["Merriweather"],
+                        "headline-lg-mobile": ["Merriweather"]
+                    },
+                    fontSize: {
+                        "body-md": ["16px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "headline-lg": ["32px", { lineHeight: "1.3", fontWeight: "700" }],
+                        "label-md": ["14px", { lineHeight: "1.2", letterSpacing: "0.01em", fontWeight: "600" }],
+                        "label-sm": ["12px", { lineHeight: "1.2", fontWeight: "500" }],
+                        "body-lg": ["18px", { lineHeight: "1.6", fontWeight: "400" }],
+                        "display-lg": ["48px", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" }],
+                        "headline-md": ["24px", { lineHeight: "1.4", fontWeight: "700" }],
+                        "headline-lg-mobile": ["28px", { lineHeight: "1.3", fontWeight: "700" }]
+                    }
+                }
+            }
+        };
+    </script>
+<style>
+        /* Claymorphic utilities */
+        .clay-card {
+            background-color: #D3DAD9;
+            box-shadow: 20px 20px 40px #b3b9b8, -10px -10px 30px rgba(255, 255, 255, 0.7);
+            border-radius: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .clay-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            box-shadow: inset 2px 2px 5px rgba(255, 255, 255, 0.5), inset -2px -2px 5px rgba(0, 0, 0, 0.05);
+            border-radius: 2rem;
+            pointer-events: none;
+        }
+
+        .clay-button {
+            background-color: #715A5A; /* Accent */
+            box-shadow: 10px 10px 20px rgba(113, 90, 90, 0.3), -5px -5px 15px rgba(255, 255, 255, 0.6);
+            color: white;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        .clay-button::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            box-shadow: inset 1px 1px 3px rgba(255, 255, 255, 0.4);
+            border-radius: inherit;
+            pointer-events: none;
+        }
+        .clay-button:active {
+            transform: translateY(2px);
+            box-shadow: 5px 5px 10px rgba(113, 90, 90, 0.2), -2px -2px 5px rgba(255, 255, 255, 0.4);
+        }
+
+        .clay-inset {
+            background-color: #D3DAD9;
+            box-shadow: inset 5px 5px 10px #b3b9b8, inset -5px -5px 10px rgba(255, 255, 255, 0.7);
+            border-radius: 1rem;
+        }
+        
+        .clay-pill-accent {
+            background-color: #715A5A;
+            box-shadow: 4px 4px 10px rgba(113, 90, 90, 0.3), -2px -2px 5px rgba(255, 255, 255, 0.5);
+            color: white;
+            border-radius: 9999px;
+        }
+
+        body {
+            background-color: #D3DAD9;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row antialiased text-on-surface">
+<!-- TopNavBar (Mobile) -->
+<nav class="md:hidden flex justify-between items-center w-full sticky top-0 z-50 px-gutter py-4 bg-background dark:bg-background shadow-[10px_10px_30px_#A8B2B1,-5px_-5px_15px_rgba(255,255,255,0.8)] dark:shadow-none">
+<div class="text-headline-md font-headline-md font-bold text-primary dark:text-primary-fixed-dim">RISE</div>
+<div class="flex gap-4 items-center">
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim hover:scale-105 transition-transform duration-200 cursor-pointer">notifications</span>
+<span class="material-symbols-outlined text-primary dark:text-primary-fixed-dim hover:scale-105 transition-transform duration-200 cursor-pointer">settings</span>
+</div>
+</nav>
+<!-- SideNavBar (Web) -->
+<nav class="hidden md:flex flex-col h-screen sticky left-0 top-0 p-container-padding w-64 rounded-r-lg bg-surface-container dark:bg-primary-container shadow-[20px_0_40px_#A8B2B1] dark:shadow-none inset-shadow-white-tl z-40">
+<div class="flex items-center gap-4 mb-stack-gap">
+<img class="w-10 h-10 rounded-full object-cover shadow-sm" data-alt="A small, stylized circular avatar icon representing an AI assistant in a light, soft claymorphic aesthetic. Colors are muted with a soft ambient glow." src="https://lh3.googleusercontent.com/aida-public/AB6AXuClMNb1hJJjXLehWu1r3E3R85l6Bg7Zbizenrds-ShP_4dteLdB4fabQw4nwr5O5qlJdBZrNWK4MIF52wGZfovzA3lHkWGzrJDZ0JrhA-mMYNXuNzWxs5yB42QFspE4jtbOi5IHt7UQ_6xvc92jJyHrelBtcxal74w5W7CiR3B1RgPbelrvxqL7fqUgVcZ68Gh68kQrWNN8_T_MrIUvfIMdmCdWB2eETIyo-5lGIAZIRqRXytgdywy_">
+<div>
+<div class="font-headline-md text-headline-md text-primary dark:text-primary-fixed-dim">RISE</div>
+<div class="text-[10px] text-on-surface-variant font-medium">Intelligent Study Engine</div>
+</div>
+</div>
+<div class="flex flex-col gap-2 mt-8 font-label-md text-label-md">
+<a class="flex items-center gap-stack-gap bg-secondary-container dark:bg-secondary text-primary dark:text-on-secondary font-bold rounded-full px-4 py-3 shadow-[4px_4px_10px_#A8B2B1] active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-weight="fill" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+                Dashboard
+            </a>
+<a class="flex items-center gap-stack-gap text-on-surface-variant dark:text-on-primary-container px-4 py-3 hover:bg-surface-variant dark:hover:bg-on-primary-container/20 rounded-full transition-all active:scale-95" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+                Timetable
+            </a>
+<a class="flex items-center gap-stack-gap text-on-surface-variant dark:text-on-primary-container px-4 py-3 hover:bg-surface-variant dark:hover:bg-on-primary-container/20 rounded-full transition-all active:scale-95" href="#">
+<span class="material-symbols-outlined">psychology</span>
+                Study Coach
+            </a>
+<a class="flex items-center gap-stack-gap text-on-surface-variant dark:text-on-primary-container px-4 py-3 hover:bg-surface-variant dark:hover:bg-on-primary-container/20 rounded-full transition-all active:scale-95" href="#">
+<span class="material-symbols-outlined">analytics</span>
+                Analytics
+            </a>
+</div>
+<div class="mt-auto">
+<button class="w-full clay-button py-3 px-4 rounded-full font-label-md text-label-md flex justify-center items-center gap-2">
+<span class="material-symbols-outlined">add</span>
+                New Study Session
+            </button>
+</div>
+</nav>
+<!-- Main Content -->
+<main class="flex-1 p-gutter md:p-section-margin max-w-7xl mx-auto w-full">
+<header class="mb-12 flex justify-between items-end">
+<div>
+<h1 class="font-display-lg text-display-lg text-primary-container mb-2">Good morning, Scholar</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Ready to dive into Advanced Calculus today?</p>
+</div>
+<button class="hidden md:flex clay-button py-3 px-6 rounded-full font-label-md text-label-md items-center gap-2">
+<span class="material-symbols-outlined">play_arrow</span>
+                Start Focus Session
+            </button>
+</header>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Adaptive Timetable Widget -->
+<section class="md:col-span-8 clay-card p-container-padding flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h2 class="font-headline-md text-headline-md text-primary">Adaptive Timetable</h2>
+<span class="material-symbols-outlined text-on-surface-variant">more_horiz</span>
+</div>
+<div class="flex-1 flex flex-col gap-4">
+<!-- Past block -->
+<div class="clay-inset p-4 flex items-center gap-4 opacity-60">
+<div class="w-12 text-center font-label-sm text-label-sm text-on-surface-variant">08:00</div>
+<div class="flex-1 bg-surface-variant rounded-lg p-3">
+<span class="font-label-md text-label-md text-primary line-through">Literature Review</span>
+</div>
+<span class="material-symbols-outlined text-green-600">check_circle</span>
+</div>
+<!-- Current active block -->
+<div class="p-1 rounded-2xl bg-gradient-to-r from-[#D3DAD9] to-[#715A5A]/20">
+<div class="clay-card p-4 flex items-center gap-4 relative overflow-visible">
+<div class="w-12 text-center font-label-sm text-label-sm text-primary font-bold">10:00</div>
+<div class="flex-1 clay-pill-accent p-4">
+<div class="font-label-md text-label-md font-bold mb-1">Advanced Calculus</div>
+<div class="font-label-sm text-label-sm opacity-90">Deep Work Session • 90 min</div>
+</div>
+<button class="clay-button w-10 h-10 rounded-full flex items-center justify-center shrink-0 ml-2">
+<span class="material-symbols-outlined">play_arrow</span>
+</button>
+</div>
+</div>
+<!-- Future block -->
+<div class="clay-inset p-4 flex items-center gap-4">
+<div class="w-12 text-center font-label-sm text-label-sm text-on-surface-variant">13:00</div>
+<div class="flex-1 bg-surface rounded-lg p-3 shadow-sm border border-white/20">
+<span class="font-label-md text-label-md text-primary">Physics Lab Prep</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Focus Velocity Widget -->
+<section class="md:col-span-4 clay-card p-container-padding flex flex-col justify-between">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary mb-2">Focus Velocity</h2>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm mb-6">Your concentration trend</p>
+</div>
+<div class="relative h-40 w-full clay-inset mb-4 flex items-end p-2 gap-2">
+<!-- Faux Bar Chart -->
+<div class="w-1/5 bg-primary/20 rounded-t-md h-[40%] transition-all hover:h-[45%]"></div>
+<div class="w-1/5 bg-primary/40 rounded-t-md h-[60%] transition-all hover:h-[65%]"></div>
+<div class="w-1/5 bg-primary/60 rounded-t-md h-[50%] transition-all hover:h-[55%]"></div>
+<div class="w-1/5 bg-primary/80 rounded-t-md h-[80%] transition-all hover:h-[85%]"></div>
+<div class="w-1/5 clay-pill-accent rounded-t-md h-[95%] relative">
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-white px-2 py-1 rounded-md shadow-sm font-label-sm text-label-sm text-primary font-bold">95%</div>
+</div>
+</div>
+<div class="flex justify-between items-center font-label-sm text-label-sm text-on-surface-variant px-2">
+<span>M</span><span>T</span><span>W</span><span>T</span><span class="text-primary font-bold">F</span>
+</div>
+</section>
+<!-- Archimedes Companion -->
+<section class="md:col-span-4 clay-card p-container-padding flex items-center gap-6">
+<div class="w-20 h-20 shrink-0 clay-inset rounded-full flex items-center justify-center p-2 relative">
+<!-- Decorative doodle placeholder -->
+<img class="w-full h-full object-contain opacity-80" data-alt="A minimalist, continuous line-art doodle of an owl, styled with a soft, warm light-mode claymorphic aesthetic. It sits inside a debossed, tactile circle on a light grey background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCodzUDksSQP6P0g0kfrsFbFOqfMBpIWraFpYrdkkDQam1MbJ7o90DyxfhVfz5fB5W2W77ADUc7hjxZAQm687z7Ck4rl3b3Z-aU_lDZf1HBOi7lxkFujbnXw7YXtfmAwhXQvqNJITxFLRTM6UD_K9psvoSgArDumRzwMJEfQPWgG8UORCpUkDfrzNuPv-ANhRmUgEou5gWVcQuIG6mnRr-TfDR3dpX7olKbaAc8MwnyVcrRn95hzP5D">
+</div>
+<div>
+<h3 class="font-label-md text-label-md text-primary font-bold mb-1">Archimedes Says</h3>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm italic">"Your calculus focus is peaking. Consider tackling that tough integral set next."</p>
+</div>
+</section>
+<!-- Quick Stats -->
+<section class="md:col-span-8 grid grid-cols-2 gap-6">
+<div class="clay-card p-6 flex flex-col justify-center items-center text-center">
+<span class="material-symbols-outlined text-4xl text-primary/50 mb-2">local_fire_department</span>
+<div class="font-display-lg text-display-lg text-primary">12</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Day Streak</div>
+</div>
+<div class="clay-card p-6 flex flex-col justify-center items-center text-center">
+<span class="material-symbols-outlined text-4xl text-primary/50 mb-2">timer</span>
+<div class="font-display-lg text-display-lg text-primary">14h</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Focus This Week</div>
+</div>
+</section>
+</div>
+</main>
+</body></html>
