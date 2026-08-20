@@ -1,0 +1,2 @@
+.flashcard-modal{width:min(1564px,calc(100vw - 32px));max-height:calc(100vh - 32px);padding:36px}.flashcard{flex-basis:min(714px,calc(100% - 20px))}@media(max-width:600px){.flashcard-modal{width:calc(100vw - 24px);padding:20px}.flashcard{flex-basis:calc(100vw - 70px)}}
+.flashcard-modal-backdrop,.mcq-modal-backdrop{z-index:9999}

@@ -31,6 +31,7 @@ urlpatterns = [
     path('api/integrations/', include('apps.integrations.urls')),
     path('api/intelligence/', include('apps.intelligence.urls')),
     path('api/ai/', include('apps.ai.urls')),
+    path('api/smart-tutor/', include('apps.smart_tutor.urls')),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('api/', include(router.urls)),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

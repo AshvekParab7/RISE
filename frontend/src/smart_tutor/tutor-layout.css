@@ -1,0 +1,4 @@
+/* Keep the two-pane tutor workspace aligned with the main content instead of shifting it left on wide screens. */
+.tutor-page{margin-left:-48px}
+@media(max-width:1000px){.tutor-page{margin-left:-30px}}
+@media(max-width:720px){.tutor-page{margin-left:-16px}}

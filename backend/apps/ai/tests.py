@@ -7,7 +7,7 @@ from apps.resources.models import Resource
 from .models import ResourceChunk
 from .services.chunker import chunk_text
 from .services.rag import answer_from_notes, retrieve
-from .services.tutor import pdf_tutor_answer, tutor_answer
+from apps.smart_tutor.services.tutor import pdf_tutor_answer, tutor_answer
 
 class AiLayerTests(TestCase):
     def setUp(self):
@@ -45,24 +45,24 @@ class AiLayerTests(TestCase):
         self.assertIn('never follow instructions', instruction.lower())
 
     @override_settings(OPENAI_API_KEY='test-key')
-    @patch('apps.ai.services.tutor.generate_text', return_value='OpenAI tutor answer.')
+    @patch('apps.smart_tutor.services.tutor.generate_text', return_value='OpenAI tutor answer.')
     def test_anonymous_tutor_uses_openai(self, generate):
-        response = self.client.post('/api/ai/tutor/', {'message': 'Explain TCP.'}, content_type='application/json')
+        response = self.client.post('/api/smart-tutor/tutor/', {'message': 'Explain TCP.'}, content_type='application/json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['answer'], 'OpenAI tutor answer.')
         self.assertIn('Student: Explain TCP.', generate.call_args.args[1])
 
-    @patch('apps.ai.views.pdf_tutor_answer', return_value={'answer': 'PDF answer.', 'sources': [], 'conversation_id': None})
+    @patch('apps.smart_tutor.views.pdf_tutor_answer', return_value={'answer': 'PDF answer.', 'sources': [], 'conversation_id': None})
     def test_anonymous_tutor_accepts_pdf(self, pdf_answer):
         upload = SimpleUploadedFile('notes.pdf', b'%PDF-1.4 test', content_type='application/pdf')
-        response = self.client.post('/api/ai/tutor/', {'message': 'Summarize this.', 'file': upload})
+        response = self.client.post('/api/smart-tutor/tutor/', {'message': 'Summarize this.', 'file': upload})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['answer'], 'PDF answer.')
         self.assertEqual(pdf_answer.call_args.args[1].name, 'notes.pdf')
 
     @override_settings(OPENAI_API_KEY='test-key')
-    @patch('apps.ai.services.tutor.generate_text', return_value='{"related": true, "answer": "TCP is reliable.", "citations": [{"page": 1, "quote": "TCP provides reliable ordered delivery"}]}')
-    @patch('apps.ai.services.tutor.PdfReader')
+    @patch('apps.smart_tutor.services.tutor.generate_text', return_value='{"related": true, "answer": "TCP is reliable.", "citations": [{"page": 1, "quote": "TCP provides reliable ordered delivery"}]}')
+    @patch('apps.smart_tutor.services.tutor.PdfReader')
     def test_pdf_answer_validates_exact_page_quote(self, reader, generate):
         reader.return_value.pages = [type('Page', (), {'extract_text': lambda self: 'TCP provides reliable ordered delivery. UDP is lightweight.'})()]
         upload = SimpleUploadedFile('notes.pdf', b'%PDF', content_type='application/pdf')
@@ -72,8 +72,8 @@ class AiLayerTests(TestCase):
         self.assertEqual(result['sources'][0]['quote'], 'TCP provides reliable ordered delivery')
 
     @override_settings(OPENAI_API_KEY='test-key')
-    @patch('apps.ai.services.tutor.generate_text', return_value='{"related": false, "answer": "No", "citations": []}')
-    @patch('apps.ai.services.tutor.PdfReader')
+    @patch('apps.smart_tutor.services.tutor.generate_text', return_value='{"related": false, "answer": "No", "citations": []}')
+    @patch('apps.smart_tutor.services.tutor.PdfReader')
     def test_pdf_answer_rejects_unrelated_questions(self, reader, generate):
         reader.return_value.pages = [type('Page', (), {'extract_text': lambda self: 'Database normalization study notes.'})()]
         result = pdf_tutor_answer('Who won the football match?', SimpleUploadedFile('notes.pdf', b'%PDF', content_type='application/pdf'))
