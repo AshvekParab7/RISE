@@ -8,13 +8,14 @@ import { taskService } from './services/taskService'
 import { resourceService } from './services/resourceService'
 import { syllabusService } from './services/syllabusService'
 import { studySessionService } from './services/studySessionService'
-import { get } from './services/api'
+import { api, get } from './services/api'
 
-const Button = ({ children, primary = false, onClick, icon: Icon, disabled = false }) => <button disabled={disabled} onClick={onClick} className={`button ${primary ? 'button-primary' : ''}`}>{Icon && <Icon size={16}/>} {children}</button>
+const Button = ({ children, primary = false, onClick, icon: Icon, disabled = false }) => <button disabled={disabled} onClick={event => { if (onClick) return onClick(event); if (children !== 'Open') return; const title = event.currentTarget.closest('.note-row')?.querySelector('b')?.textContent; if (!title) return; get('/resources/').then(value => asArray(value).find(item => item.title === title)).then(openResource).catch(() => null) }} className={`button ${primary ? 'button-primary' : ''}`}>{Icon && <Icon size={16}/>} {children}</button>
 const Header = ({ eyebrow, title, description, action }) => <div className="page-header"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="muted lead">{description}</p></div>{action}</div>
 const ErrorMessage = ({ message }) => message ? <p className="api-error">{message}</p> : null
 const asArray = value => Array.isArray(value) ? value : value?.results || []
 const mapTask = (task, subjects) => ({ ...task, due: task.deadline, estimate: `${task.estimated_minutes} min`, status: task.status === 'COMPLETED' ? 'completed' : 'open', subjectId: task.subject, subject: subjects.find(item => item.id === task.subject)?.name || task.subject })
+const openResource = note => { if (!note.file) return; const origin = new URL(api.url).origin; const url = /^https?:\/\//i.test(note.file) ? note.file : new URL(note.file, `${origin}/`).toString(); window.open(url, '_blank', 'noopener,noreferrer') }
 
 export function ConnectedSubjects() {
   const { subjects, setSubjects } = useWorkspace(); const [form, setForm] = useState(null); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [error, setError] = useState('')

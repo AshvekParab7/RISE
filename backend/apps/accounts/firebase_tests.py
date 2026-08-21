@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.test import override_settings
 from django.test import TestCase
 from rest_framework.test import APITestCase
 
@@ -23,6 +24,15 @@ class FirebaseLoginTests(APITestCase):
         with patch('apps.accounts.views.verify_firebase_id_token', side_effect=FirebaseAuthError):
             response = self.client.post('/api/auth/firebase/', {'id_token': 'invalid'}, format='json')
         self.assertEqual(response.status_code, 401)
+
+    @override_settings(FIREBASE_PROJECT_ID='rise-24726', FIREBASE_SERVICE_ACCOUNT_JSON='')
+    @patch('google.oauth2.id_token.verify_firebase_token')
+    def test_valid_token_uses_project_verification_without_service_account(self, verify_token):
+        verify_token.return_value = {'sub': 'google-sub', 'email': 'google@example.com', 'name': 'Google Student'}
+        response = self.client.post('/api/auth/firebase/', {'id_token': 'firebase-token'}, format='json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(User.objects.get(email='google@example.com').firebase_uid, 'google-sub')
+        verify_token.assert_called_once()
 
     def test_existing_email_is_linked_without_duplicate_user(self):
         user = User.objects.create_user('existing@example.com', 'Password123!')

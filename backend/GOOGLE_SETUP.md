@@ -113,6 +113,7 @@ These scopes are not requested or used in Phase 3A.
    - `https://www.googleapis.com/auth/classroom.courses.readonly`
    - `https://www.googleapis.com/auth/classroom.coursework.me.readonly`
    - `https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly`
+      - `https://www.googleapis.com/auth/drive.readonly`
 3. Reauthorize through the RISE Classroom sync action so these scopes are added incrementally.
 4. Keep Classroom test users configured while the consent screen is in testing.
 

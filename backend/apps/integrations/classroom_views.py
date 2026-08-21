@@ -8,7 +8,7 @@ from .models_classroom import GoogleCourse, GoogleCoursework, GoogleMaterial
 from .services.classroom_sync import ClassroomSyncEngine
 from .services.google_classroom import ClassroomApiError
 from .services.google_tokens import GoogleAuthenticationRequired
-from .services.google_classroom_gis import ClassroomTokenError, authorize_classroom_connection
+from .services.google_classroom_gis import CLASSROOM_GIS_SCOPES, ClassroomTokenError, authorize_classroom_connection
 
 class ClassroomStatusView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
@@ -27,6 +27,9 @@ class ClassroomSyncView(APIView):
         connection = GoogleConnection.objects.filter(user=request.user, is_active=True).first()
         if not connection:
             return Response({'detail': 'Classroom access needs your permission. Connect Classroom to continue.'}, status=status.HTTP_403_FORBIDDEN)
+        missing_scopes = sorted(set(CLASSROOM_GIS_SCOPES) - set(connection.scopes or []))
+        if missing_scopes:
+            return Response({'detail': 'Additional Google Classroom permission is required to download materials.', 'missing_scopes': missing_scopes}, status=status.HTTP_403_FORBIDDEN)
         try:
             result = ClassroomSyncEngine(connection).sync()
             return Response(result)

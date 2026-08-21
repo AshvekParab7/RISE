@@ -84,6 +84,8 @@ import {
 import ConnectedOnboardingPage from "./ConnectedOnboardingFinal";
 import GoogleIntegrationPage from "./GoogleIntegration";
 import ConnectedTutorPage from "./ConnectedTutor";
+import AshvekStudyCoachPage from "./ashvek/pages/AshvekStudyCoachPage";
+import LearnFromYouTube from "./learning_paths/LearnFromYouTube";
 import PlannerPage from "./PlannerPage";
 import { ClayAnalytics, ClayDashboard, ClaySettings } from "./ClayPages";
 import ClayFocusPage from "./ClayFocus";
@@ -105,7 +107,7 @@ SettingsPage = ClaySettings;
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/planner", label: "Timetable", icon: CalendarDays },
-  { to: "/tutor", label: "Study Coach", icon: Brain },
+  { to: "/tutor", label: "RISE Tutor", icon: Brain },
   { to: "/progress", label: "Analytics", icon: TrendingUp },
   { to: "/subjects", label: "My Subjects", icon: BookOpen },
   { to: "/tasks", label: "Tasks", icon: CheckSquare },
@@ -342,7 +344,10 @@ function Shell() {
               element={<ClayFocusPage active={focus} setActive={setFocus} />}
             />
             <Route path="/knowledge-check" element={<KnowledgeCheck />} />
-            <Route path="/tutor" element={<ConnectedTutorPage />} />
+            <Route path="/tutor" element={<AshvekStudyCoachPage />} />
+            <Route path="/ashvek/study-coach" element={<AshvekStudyCoachPage />} />
+            <Route path="/tutor-legacy" element={<ConnectedTutorPage />} />
+            <Route path="/learn/youtube" element={<LearnFromYouTube />} />
             <Route path="/tests" element={<Tests />} />
             <Route path="/progress" element={<Progress />} />
             <Route path="/integrations" element={<GoogleIntegrationPage />} />

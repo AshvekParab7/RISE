@@ -4,6 +4,7 @@ const GIS_URL = 'https://accounts.google.com/gsi/client'
 const CLASSROOM_SCOPES = [
   'https://www.googleapis.com/auth/classroom.courses.readonly',
   'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
+  'https://www.googleapis.com/auth/drive.readonly',
 ]
 let scriptPromise
 
