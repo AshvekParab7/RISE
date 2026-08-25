@@ -2,6 +2,7 @@ import { get, post, remove } from '../services/api'
 
 export const learningPathsApi = {
   create: (url, retry = false) => post('/learning/youtube/', { url, retry }),
+  searchYouTube: query => get(`/learning/youtube/search/?q=${encodeURIComponent(query)}`),
   list: () => get('/learning/'),
   detail: id => get(`/learning/${id}/`),
   remove: id => remove(`/learning/${id}/`),

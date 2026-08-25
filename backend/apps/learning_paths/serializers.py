@@ -31,7 +31,7 @@ class LearningPathSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LearningPath
-        fields = ('id', 'youtube_url', 'video_id', 'title', 'status', 'processing_stage', 'processing_progress', 'failure_reason', 'transcript_language', 'transcript_duration', 'current_level_order', 'xp', 'cumulative_notes', 'mastery_percentage', 'final_challenge', 'completed_levels', 'total_levels', 'levels', 'created_at', 'updated_at', 'completed_at')
+        fields = ('id', 'youtube_url', 'video_id', 'title', 'status', 'processing_stage', 'processing_progress', 'failure_reason', 'transcript_language', 'transcript_duration', 'current_level_order', 'xp', 'cumulative_notes', 'study_notes', 'mastery_percentage', 'final_challenge', 'completed_levels', 'total_levels', 'levels', 'created_at', 'updated_at', 'completed_at')
 
     def get_completed_levels(self, obj):
         return obj.levels.filter(status=LearningLevel.Status.COMPLETED).count()

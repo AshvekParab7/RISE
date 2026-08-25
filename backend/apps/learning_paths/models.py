@@ -24,6 +24,7 @@ class LearningPath(models.Model):
     current_level_order = models.PositiveSmallIntegerField(default=1)
     xp = models.PositiveIntegerField(default=0)
     cumulative_notes = models.TextField(blank=True)
+    study_notes = models.JSONField(default=list)
     final_challenge = models.JSONField(default=dict)
     mastery_percentage = models.PositiveSmallIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

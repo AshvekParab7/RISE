@@ -1,13 +1,13 @@
 from types import SimpleNamespace
 from unittest.mock import patch
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from rest_framework.test import APITestCase
 from apps.accounts.models import User
 from ..models import LearningLevel, LearningPath
 from ..services.chunker import chunk_transcript
 from ..services.processor import process_learning_path
 from ..services.transcript import fetch_transcript
-from ..services.youtube import YouTubeVideoError, extract_video_id
+from ..services.youtube import YouTubeVideoError, extract_video_id, format_duration
 
 
 class PipelineUnitTests(TestCase):
@@ -71,6 +71,16 @@ class LearningPathApiTests(APITestCase):
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.data['status'], LearningPath.Status.PROCESSING)
         enqueue.assert_called_once()
+
+    @override_settings(YOUTUBE_API_KEY='')
+    def test_youtube_search_requires_server_configuration(self):
+        response = self.client.get('/api/learning/youtube/search/?q=python')
+        self.assertEqual(response.status_code, 503)
+        self.assertIn('not configured', response.data['detail'])
+
+    def test_youtube_duration_format(self):
+        self.assertEqual(format_duration('PT1H2M3S'), '1:02:03')
+        self.assertEqual(format_duration('PT4M5S'), '4:05')
 
     def test_user_isolation_and_locked_level(self):
         self.client.force_authenticate(self.other)

@@ -24,6 +24,7 @@ def process_learning_path(path):
         with transaction.atomic():
             path.levels.all().delete()
             levels = []
+            study_notes = []
             for index, chunk in enumerate(chunks, 1):
                 _progress(path, min(90, 45 + round(index / len(chunks) * 45)), f'Generating level {index} of {len(chunks)}')
                 generated = generate_level(chunk, index)
@@ -43,12 +44,20 @@ def process_learning_path(path):
                     estimated_minutes=max(1, round((chunk['end_seconds'] - chunk['start_seconds']) / 60)),
                     status=LearningLevel.Status.AVAILABLE if index == 1 else LearningLevel.Status.LOCKED,
                 ))
+                study_notes.append({
+                    'order': index,
+                    'title': generated['title'][:240],
+                    'key_concepts': generated.get('key_concepts', []),
+                    'notes': generated.get('notes', ''),
+                    'lesson_steps': generated.get('lesson_steps', []),
+                })
+            path.study_notes = study_notes
             path.final_challenge = generate_final_challenge(levels)
         path.status = LearningPath.Status.READY
         path.processing_stage = 'Ready to learn'
         path.processing_progress = 100
         path.failure_reason = ''
-        path.save(update_fields=['status', 'processing_stage', 'processing_progress', 'failure_reason', 'final_challenge', 'updated_at'])
+        path.save(update_fields=['status', 'processing_stage', 'processing_progress', 'failure_reason', 'study_notes', 'final_challenge', 'updated_at'])
         return path
     except Exception as exc:
         path.status = LearningPath.Status.FAILED

@@ -7,7 +7,20 @@ from .models import LearningLevel, LearningPath
 from .serializers import CheckpointAttemptSerializer, CheckpointSerializer, FinalChallengeSerializer, LearningLevelSerializer, LearningPathSerializer, YouTubeCreateSerializer
 from .services.tasks import enqueue_learning_path
 from .services.progress import evaluate_checkpoint, evaluate_final_challenge
-from .services.youtube import YouTubeVideoError, canonical_url, extract_video_id
+from .services.youtube import YouTubeVideoError, canonical_url, extract_video_id, search_videos
+
+
+class YouTubeSearchView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        query = request.query_params.get('q', '').strip()
+        if len(query) < 2:
+            return Response({'detail': 'Enter at least 2 characters to search YouTube.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            return Response({'results': search_videos(query)})
+        except YouTubeVideoError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
 
 class YouTubeLearningCreateView(APIView):
