@@ -12,7 +12,7 @@ INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
     'corsheaders', 'rest_framework', 'rest_framework_simplejwt', 'drf_spectacular',
-    'apps.accounts', 'apps.academics', 'apps.resources', 'apps.tasks', 'apps.ashvek_study_coach', 'apps.learning_paths',
+    'apps.accounts', 'apps.academics', 'apps.resources', 'apps.tasks', 'apps.focus', 'apps.ashvek_study_coach', 'apps.learning_paths',
 ]
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', 'django.middleware.security.SecurityMiddleware',

@@ -23,7 +23,12 @@ class StudySessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudySession
         fields = '__all__'
-        read_only_fields = ('student', 'created_at')
+        read_only_fields = (
+            'student', 'created_at', 'selected_resources', 'smart_break_test',
+            'remaining_seconds', 'last_state_change_at', 'focus_state',
+            'break_unlock_expires_at', 'penalty_seconds', 'end_reason',
+            'score', 'awarded_points', 'completion_metadata',
+        )
     def validate(self, attrs):
         subject = attrs.get('subject')
         topic = attrs.get('topic')

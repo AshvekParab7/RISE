@@ -1,4 +1,5 @@
 from rest_framework import permissions, viewsets
+from apps.focus.views import FocusSessionActionsMixin
 from .models import PlannerEvent, StudySession, Task
 from .serializers import PlannerEventSerializer, StudySessionSerializer, TaskSerializer
 
@@ -8,10 +9,18 @@ class TaskViewSet(viewsets.ModelViewSet):
     lookup_value_regex = '[0-9a-f-]{36}'
     def get_queryset(self): return Task.objects.filter(student=self.request.user).select_related('subject', 'subject__semester')
 
-class StudySessionViewSet(viewsets.ModelViewSet):
+class StudySessionViewSet(FocusSessionActionsMixin, viewsets.ModelViewSet):
     serializer_class = StudySessionSerializer
     permission_classes = (permissions.IsAuthenticated,)
     lookup_value_regex = '[0-9a-f-]{36}'
+
+    focus_current = FocusSessionActionsMixin.focus_current
+    focus_start = FocusSessionActionsMixin.focus_start
+    focus_state = FocusSessionActionsMixin.focus_state
+    focus_study_guide = FocusSessionActionsMixin.focus_study_guide
+    focus_smart_break_question = FocusSessionActionsMixin.focus_smart_break_question
+    focus_smart_break_answer = FocusSessionActionsMixin.focus_smart_break_answer
+
     def get_queryset(self): return StudySession.objects.filter(student=self.request.user).select_related('subject', 'topic')
 
 class PlannerEventViewSet(viewsets.ModelViewSet):

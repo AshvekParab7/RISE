@@ -7,6 +7,7 @@ from apps.resources.models import Resource
 from .models import ResourceChunk
 from .services.chunker import chunk_text
 from .services.rag import answer_from_notes, retrieve
+from .services.resource_processing import process_resource
 from .services.tutor import pdf_tutor_answer, tutor_answer
 
 class AiLayerTests(TestCase):
@@ -22,6 +23,15 @@ class AiLayerTests(TestCase):
         chunks = chunk_text('word ' * 1000, size=100, overlap=10)
         self.assertGreater(len(chunks), 5)
         self.assertTrue(all(len(chunk['text']) <= 100 for chunk in chunks))
+
+    @patch('apps.ai.services.resource_processing.embed_text', return_value=[1.0, 0.0])
+    @patch('apps.ai.services.resource_processing.extract_document', return_value='TCP congestion control prevents network overload.')
+    def test_uploaded_pdf_becomes_ready_and_searchable(self, _extract, _embed):
+        self.resource.file.save('cn-notes.pdf', SimpleUploadedFile('cn-notes.pdf', b'%PDF'), save=True)
+        processed = process_resource(self.resource)
+        self.assertEqual(processed.processing_status, Resource.ProcessingStatus.READY)
+        self.assertTrue(processed.is_ai_ready)
+        self.assertEqual(processed.chunks.count(), 1)
 
     @override_settings(OPENAI_API_KEY='')
     def test_tutor_gracefully_falls_back_without_key(self):
