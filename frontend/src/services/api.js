@@ -43,6 +43,7 @@ export async function request(path, options = {}, retried = false) {
 }
 
 export const api = { request, url: API_URL }
+export const hasSession = () => Boolean(localStorage.getItem('rise_access_token') || localStorage.getItem('rise_refresh_token'))
 export const get = path => request(path)
 export const post = (path, body) => request(path, { method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) })
 export const patch = (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) })

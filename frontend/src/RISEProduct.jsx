@@ -87,6 +87,7 @@ import ConnectedTutorPage from "./ConnectedTutor";
 import AshvekStudyCoachPage from "./ashvek/pages/AshvekStudyCoachPage";
 import LearnFromYouTube from "./learning_paths/LearnFromYouTube";
 import PlannerPage from "./PlannerPage";
+import AdaptivePlannerPage from "./timttable/PlannerPage";
 import { ClayAnalytics, ClayDashboard, ClaySettings } from "./ClayPages";
 import ClayFocusPage from "./ClayFocus";
 import { useWorkspace, WorkspaceContext } from "./context/WorkspaceContext";
@@ -338,7 +339,7 @@ function Shell() {
             <Route path="/subjects/:id" element={<SubjectDetail />} />
             <Route path="/tasks" element={<ConnectedTasksPage />} />
             <Route path="/notes" element={<ConnectedNotesPage />} />
-            <Route path="/planner" element={<LegacyPlanner />} />
+            <Route path="/planner" element={<AdaptivePlannerPage />} />
             <Route
               path="/focus"
               element={<ClayFocusPage active={focus} setActive={setFocus} />}
