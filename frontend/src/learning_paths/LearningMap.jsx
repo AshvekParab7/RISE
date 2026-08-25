@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, LockKeyhole, Sparkles, Trophy, Zap } from 'lucide-react'
+import { jsPDF } from 'jspdf'
 import './learningMap.css'
 import './notesScroll.css'
 
@@ -84,6 +85,28 @@ export default function LearningMap({ path, transition, onTransitionEnd, onSelec
     const render = selected => { const note = notes.find(item => item.order === selected) || notes[0]; if (!note) return; levels.innerHTML = notes.filter(item => `${item.title} ${item.notes} ${(item.key_concepts || []).join(' ')}`.toLowerCase().includes(search.value.toLowerCase())).map(item => `<button class="notes-level ${item.order === note.order ? 'active' : ''}" data-order="${item.order}">LEVEL ${item.order}<strong>${safe(item.title)}</strong></button>`).join(''); content.innerHTML = `<p class="eyebrow">LEVEL ${note.order}</p><h3>${safe(note.title)}</h3>${note.key_concepts?.length ? `<h4>Key concepts</h4><div class="notes-tags">${note.key_concepts.map(concept => `<span>${safe(concept)}</span>`).join('')}</div>` : ''}<h4>Study notes</h4><div class="notes-copy">${safe(note.notes).replace(/\n/g, '<br/>')}</div>${(note.lesson_steps || []).map(step => `<section><h4>${safe(step.heading)}</h4><p>${safe(step.explanation)}</p>${step.example ? `<div class="notes-code"><code>${safe(step.example)}</code><button class="copy-note" data-code="${safe(step.example)}" type="button">Copy</button></div>` : ''}</section>`).join('')}`; levels.querySelectorAll('.notes-level').forEach(item => item.addEventListener('click', () => render(Number(item.dataset.order)))); content.querySelectorAll('.copy-note').forEach(item => item.addEventListener('click', () => navigator.clipboard?.writeText(item.dataset.code))) }
     const close = () => { modal.hidden = true }; button.addEventListener('click', () => { modal.hidden = false; render(notes[0]?.order) }); modal.querySelector('.notes-close').addEventListener('click', close); modal.addEventListener('click', event => { if (event.target === modal) close() }); search.addEventListener('input', () => render(notes[0]?.order)); stats.prepend(button); document.querySelector('.learning-map-screen')?.append(modal)
     return () => { button.remove(); modal.remove() }
+  }, [path.id])
+  useEffect(() => {
+    const modal = document.querySelector('.notes-overlay')
+    const header = modal?.querySelector('.notes-panel > header')
+    if (!modal || !header || header.querySelector('.notes-download')) return undefined
+    const notes = path.study_notes?.length ? path.study_notes : path.levels.map(level => ({ order: level.order, title: level.title, key_concepts: level.key_concepts, notes: level.notes, lesson_steps: level.lesson_steps }))
+    const button = document.createElement('button')
+    button.className = 'notes-download'; button.type = 'button'; button.textContent = '⬇ Download PDF'
+    const download = () => {
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4' })
+      const margin = 52; const pageWidth = 595.28; const pageHeight = 841.89; const contentWidth = pageWidth - margin * 2; let y = margin
+      const addPage = height => { if (y + height > pageHeight - margin) { pdf.addPage(); y = margin } }
+      const addText = (value, size, color, gap = 7, font = 'normal') => { pdf.setFont('helvetica', font); pdf.setFontSize(size); pdf.setTextColor(...color); const lines = pdf.splitTextToSize(String(value || ''), contentWidth); const lineHeight = size * 1.35; lines.forEach(line => { addPage(lineHeight); pdf.text(line, margin, y); y += lineHeight }); y += gap; return lines.length }
+      const addCode = value => { pdf.setFont('courier', 'normal'); pdf.setFontSize(9); const lines = pdf.splitTextToSize(String(value || ''), contentWidth - 24); const lineHeight = 13; const blockHeight = lines.length * lineHeight + 24; addPage(blockHeight); pdf.setFillColor(244, 238, 246); pdf.setDrawColor(142, 92, 153); pdf.setLineWidth(3); pdf.rect(margin, y - 3, contentWidth, blockHeight, 'F'); pdf.line(margin, y - 3, margin, y + blockHeight - 3); pdf.setTextColor(48, 38, 56); lines.forEach(line => { pdf.text(line, margin + 12, y + 10); y += lineHeight }); y += 17 }
+      pdf.setFillColor(81, 52, 91); pdf.rect(margin, y, 7, 52, 'F'); pdf.setFont('helvetica', 'bold'); pdf.setFontSize(26); pdf.setTextColor(45, 37, 48); pdf.text('RISE Study Notes', margin + 18, y + 27); y += 43
+      addText(path.title, 12, [118, 80, 129], 4, 'normal'); addText('Generated from your learning journey', 9, [120, 108, 125], 24)
+      notes.forEach(note => { if (note.order > 1) { pdf.addPage(); y = margin } addText(`LEVEL ${note.order} - ${note.title}`, 18, [118, 80, 129], 12, 'bold'); if (note.key_concepts?.length) { addText('Key concepts', 11, [118, 80, 129], 4, 'bold'); note.key_concepts.forEach(concept => addText(`- ${concept}`, 10, [55, 47, 59], 2)) } addText('Study notes', 11, [118, 80, 129], 4, 'bold'); addText(note.notes, 10.5, [55, 47, 59], 12); (note.lesson_steps || []).forEach(step => { addText(step.heading, 11, [118, 80, 129], 4, 'bold'); addText(step.explanation, 10.5, [55, 47, 59], 7); if (step.example) addCode(step.example) }) })
+      const pageCount = pdf.getNumberOfPages(); for (let page = 1; page <= pageCount; page += 1) { pdf.setPage(page); pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor(136, 122, 141); pdf.text(`RISE Study Notes  |  Page ${page} of ${pageCount}`, margin, pageHeight - 25) }
+      pdf.save('RISE-Study-Notes.pdf')
+    }
+    button.addEventListener('click', download); header.append(button)
+    return () => { button.remove() }
   }, [path.id])
   useEffect(() => {
     const preventBackgroundScroll = event => {
