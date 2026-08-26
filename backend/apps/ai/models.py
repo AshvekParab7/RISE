@@ -33,6 +33,29 @@ class TutorMessage(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
+
+class PlannerConversation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='planner_conversations')
+    title = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('-updated_at',)
+
+
+class PlannerMessage(models.Model):
+    class Role(models.TextChoices):
+        USER = 'USER', 'User'
+        ASSISTANT = 'ASSISTANT', 'Assistant'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(PlannerConversation, on_delete=models.CASCADE, related_name='messages')
+    role = models.CharField(max_length=10, choices=Role.choices)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
 class GeneratedTest(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='generated_tests')

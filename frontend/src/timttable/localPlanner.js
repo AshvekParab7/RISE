@@ -101,6 +101,47 @@ const parseDay = (text, selectedDay) => {
   return shiftDate(fallback, offset);
 };
 
+const hasExplicitDay = (text) =>
+  /\b(?:today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun)\b/i.test(
+    text,
+  ) || /\b20\d{2}-\d{2}-\d{2}\b/.test(text);
+
+const parseAvailability = (text) => {
+  const range = text.match(
+    /\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\s*(?:to|until|and|-)\s*(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?\b/i,
+  );
+  if (range) {
+    const start = toMinutes(range[1], range[2], range[3]);
+    let end = toMinutes(range[4], range[5], range[6]);
+    if (start !== null && end !== null) {
+      if (end <= start && !range[3] && !range[6]) end += 12 * 60;
+      if (end > start) return { start, end };
+    }
+  }
+  if (/\b(all day|anytime|any time)\b/i.test(text)) {
+    return { start: 8 * 60, end: 22 * 60 };
+  }
+  for (const [label, start, end] of [
+    ["morning", 8 * 60, 12 * 60],
+    ["afternoon", 13 * 60, 17 * 60],
+    ["evening", 17 * 60, 22 * 60],
+  ]) {
+    if (new RegExp(`\\b${label}\\b`, "i").test(text)) {
+      return { start, end };
+    }
+  }
+  const parsedTime = parseTime(text);
+  if (parsedTime) {
+    return {
+      start: parsedTime.minutes,
+      end: Math.min(parsedTime.minutes + 120, 22 * 60),
+    };
+  }
+  return /\b(free|available)\b/i.test(text)
+    ? { start: 8 * 60, end: 22 * 60 }
+    : null;
+};
+
 const findSubject = (text, choices) => {
   const normalizedText = normalize(text);
   return choices.find((subject) =>
@@ -148,6 +189,7 @@ export function localPlannerReply({
   subjects = [],
   selectedDay,
   events = [],
+  plannerContext = {},
 }) {
   const userMessages = history
     .filter((message) => message.role === "user")
@@ -159,6 +201,22 @@ export function localPlannerReply({
   const choices = subjectChoices(subjects);
   const subject = findSubject(text, choices);
   const parsedTime = parseTime(text);
+  const availability = parseAvailability(text);
+  const lastMessage = latestMessage.trim().toLowerCase();
+  const recentAssistantText = history
+    .filter((message) => message.role === "assistant")
+    .slice(-3)
+    .map((message) => message.content)
+    .join(" ")
+    .toLowerCase();
+  const confirmedAvailability =
+    !availability &&
+    ["yes", "y", "sure", "yes i am free", "yes, i'm free"].includes(
+      lastMessage,
+    ) &&
+    recentAssistantText.includes("free")
+      ? { start: 8 * 60, end: 22 * 60 }
+      : availability;
   const duration = parseDuration(text);
   const greeting =
     /^(hi|hello|hey|good morning|good afternoon|good evening)\b/i.test(
@@ -198,24 +256,68 @@ export function localPlannerReply({
     };
   }
 
-  if (!parsedTime) {
+  const day = parseDay(text, selectedDay);
+  if (!hasExplicitDay(text)) {
+    const options = [0, 1, 2].map((offset) => dayLabel(shiftDate(day, offset)));
     return {
       related: true,
-      reply: `When would you like to start your ${subject.name} block?`,
+      reply: `Which day should I plan ${subject.name} for? I will check your study blocks, exams, and timetable first.`,
       question: {
-        id: "availability",
+        id: "day",
         type: "mcq",
-        text: "Choose a start time",
-        options: ["Morning (09:00)", "Afternoon (14:00)", "Evening (18:00)"],
+        text: "Choose a study day",
+        options,
       },
       ready: false,
       plan: [],
     };
   }
 
-  const day = parseDay(text, selectedDay);
-  const requestedTime = parsedTime.minutes;
-  const scheduledTime = nextOpenTime(day, requestedTime, duration, events);
+  if (!confirmedAvailability) {
+    return {
+      related: true,
+      reply: `Are you free on ${dayLabel(day)}? Tell me a window and I will avoid your existing study blocks and timetable events.`,
+      question: {
+        id: "availability",
+        type: "mcq",
+        text: `When are you free on ${dayLabel(day)}?`,
+        options: [
+          "Morning (08:00-12:00)",
+          "Afternoon (13:00-17:00)",
+          "Evening (17:00-22:00)",
+          "I am free all day",
+        ],
+      },
+      ready: false,
+      plan: [],
+    };
+  }
+
+  const contextEvents = [
+    ...events,
+    ...(plannerContext.exams || []).map((exam) => ({
+      start_at: `${exam.exam_date || exam.date}T${exam.start_time}`,
+      duration_minutes: 120,
+      title: exam.title,
+    })),
+    ...(plannerContext.classes || [])
+      .filter((entry) => {
+        const javascriptDay = new Date(`${day}T12:00:00`).getDay();
+        const mondayBasedDay = (javascriptDay + 6) % 7;
+        return Number(entry.day_of_week) === mondayBasedDay;
+      })
+      .map((entry) => ({
+        start_at: `${day}T${entry.start_time}`,
+        duration_minutes: 60,
+        title: entry.subject || entry.title || "College timetable",
+      })),
+  ];
+  const scheduledTime = nextOpenTime(
+    day,
+    confirmedAvailability.start,
+    duration,
+    contextEvents,
+  );
   if (scheduledTime === null) {
     return {
       related: true,
@@ -232,16 +334,43 @@ export function localPlannerReply({
   }
 
   const topic = extractTopic(latestMessage);
+  const exam = (plannerContext.exams || [])
+    .filter(
+      (item) =>
+        item.subject === subject.name ||
+        item.subject === subject.id ||
+        item.subject_id === subject.id,
+    )
+    .sort((left, right) =>
+      String(left.exam_date || left.date).localeCompare(
+        String(right.exam_date || right.date),
+      ),
+    )[0];
+  const resources = (plannerContext.resources || [])
+    .filter(
+      (item) =>
+        item.subject === subject.name ||
+        item.subject === subject.id ||
+        item.subject_id === subject.id,
+    )
+    .slice(0, 2);
+  const resourceTitles = resources.map((item) => item.title).filter(Boolean);
   const title = topic
     ? `Study ${subject.name}: ${topic}`
     : `Study ${subject.name}`;
   const adjustment =
-    scheduledTime === requestedTime
+    scheduledTime === confirmedAvailability.start
       ? ""
       : " The next open slot is shown to avoid a conflict.";
+  const contextDetail = exam
+    ? ` Your ${exam.title} is on ${exam.exam_date || exam.date}.`
+    : "";
+  const resourceDetail = resourceTitles.length
+    ? ` You can use ${resourceTitles.join(" and ")} for this session.`
+    : "";
   return {
     related: true,
-    reply: `I found a ${duration}-minute block for ${subject.name} on ${dayLabel(day)} at ${timeLabel(scheduledTime)}.${adjustment} Add it to your planner?`,
+    reply: `I found a ${duration}-minute block for ${subject.name} on ${dayLabel(day)} at ${timeLabel(scheduledTime)}.${adjustment}${contextDetail}${resourceDetail} Add it to your planner?`,
     question: {
       id: "confirmation",
       type: "confirmation",
@@ -259,6 +388,7 @@ export function localPlannerReply({
         type: "study",
         meta: `${duration} min`,
         subject: subject.id || null,
+        resource_titles: resourceTitles,
       },
     ],
   };

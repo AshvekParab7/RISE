@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 from django.utils import timezone
 
-from apps.academics.models import CollegeClass, Exam
+from apps.academics.models import CollegeClass
 from apps.integrations.models_calendar import GoogleCalendarEvent
 from apps.integrations.models_classroom import GoogleCoursework
 from apps.intelligence.services.recommendation_engine import build_context, build_daily_plan, build_next_action, calculate_priorities
@@ -41,7 +41,8 @@ def _timetable(user, start_date, days, context):
     planner_events = PlannerEvent.objects.filter(student=user, start_at__date__gte=start_date, start_at__date__lt=end_date).select_related('subject')
     for event in planner_events:
         events.append(_event_data(event, 'RISE', event.subject.name if event.subject else ''))
-    classes = CollegeClass.objects.filter(semester__student=user, semester=context.get('subjects')[0].semester if context.get('subjects') else None).select_related('subject') if context.get('subjects') else CollegeClass.objects.none()
+    semester = context.get('semester')
+    classes = CollegeClass.objects.filter(semester=semester).select_related('subject') if semester else CollegeClass.objects.none()
     for day_offset in range(days):
         day = start_date + timedelta(days=day_offset)
         for college_class in classes:
@@ -68,8 +69,9 @@ def _timetable(user, start_date, days, context):
     )
     for event in calendar_events:
         events.append(_event_data(event, 'GOOGLE_CALENDAR', read_only=True, all_day=event.all_day, link=event.html_link))
-    exams = Exam.objects.filter(semester__student=user, exam_date__gte=start_date, exam_date__lt=end_date).select_related('subject')
-    for exam in exams:
+    for exam in context.get('exams', []):
+        if not start_date <= exam.exam_date < end_date:
+            continue
         start = timezone.make_aware(datetime.combine(exam.exam_date, exam.start_time))
         end = timezone.make_aware(datetime.combine(exam.exam_date, exam.end_time))
         events.append({
@@ -147,7 +149,8 @@ def build_overview(user, start_date=None, days=7):
     context = build_context(user, day=start_date)
     subjects = context['subjects']
     topics_by_subject = context['topics_by_subject']
-    resources = Resource.objects.filter(student=user).select_related('subject').order_by('-is_ai_ready', '-uploaded_at')
+    semester = context.get('semester')
+    resources = Resource.objects.filter(student=user, subject__semester=semester).select_related('subject').order_by('-is_ai_ready', '-uploaded_at') if semester else Resource.objects.none()
     resources_by_subject = {}
     for resource in resources:
         resources_by_subject.setdefault(resource.subject_id, []).append(_resource_data(resource))

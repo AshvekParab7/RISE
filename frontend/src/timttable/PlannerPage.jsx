@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ArrowUpRight,
   CalendarDays,
@@ -23,11 +23,36 @@ import { adaptivePlannerService } from "./adaptivePlannerService";
 import { recognizeExamImage } from "./imageOcr";
 import "./timetable.css";
 
-const useToastError = initial => useState(initial);
+const useToastError = (initial) => useState(initial);
 
-const asArray = (value) =>
-  Array.isArray(value) ? value : value?.results || [];
-const dateValue = (value) => (value ? new Date(`${value}T12:00:00`) : null);
+const asArray = (value) => {
+  const items = Array.isArray(value) ? value : value?.results;
+  return Array.isArray(items) ? items : [];
+};
+const normalizeOverview = (value) => {
+  const resourceCount = Number(value?.resource_count);
+  return {
+    ...(value || {}),
+    subjects: asArray(value?.subjects),
+    timetable: asArray(value?.timetable),
+    exam_missions: asArray(value?.exam_missions),
+    weak_topics: asArray(value?.weak_topics),
+    deadline_rescue: asArray(value?.deadline_rescue),
+    next_action: value?.next_action || {
+      action: null,
+      reason: "Add a subject, topic, or exam to get a next action.",
+    },
+    resource_count: Number.isFinite(resourceCount)
+      ? Math.max(0, resourceCount)
+      : 0,
+  };
+};
+const emptyOverview = normalizeOverview({});
+const dateValue = (value) => {
+  if (!value) return null;
+  const date = new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 const formatDate = (value) => {
   const date = dateValue(value);
   return date
@@ -37,23 +62,27 @@ const formatDate = (value) => {
       }).format(date)
     : "Date needed";
 };
-const formatDateTime = (value) =>
-  value
+const formatDateTime = (value) => {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime())
     ? new Intl.DateTimeFormat("en-US", {
         weekday: "short",
         month: "short",
         day: "numeric",
         hour: "numeric",
         minute: "2-digit",
-      }).format(new Date(value))
+      }).format(date)
     : "Time needed";
-const formatTime = (value) =>
-  value
+};
+const formatTime = (value) => {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime())
     ? new Intl.DateTimeFormat("en-US", {
         hour: "numeric",
         minute: "2-digit",
-      }).format(new Date(value))
+      }).format(date)
     : "";
+};
 const statusClass = (value) =>
   String(value || "")
     .toLowerCase()
@@ -76,6 +105,14 @@ function StatusPill({ value }) {
 }
 
 function MissionCard({ mission }) {
+  const progress = Math.max(
+    0,
+    Math.min(100, Number(mission.progress_percentage) || 0),
+  );
+  const rawDaysRemaining = Number(mission.days_remaining);
+  const daysRemaining = Number.isFinite(rawDaysRemaining)
+    ? rawDaysRemaining
+    : null;
   return (
     <article className="mission-card">
       <div className="mission-card-head">
@@ -89,26 +126,30 @@ function MissionCard({ mission }) {
         <CalendarDays size={14} />
         <b>{formatDate(mission.exam_date)}</b>
         <span>
-          {mission.days_remaining < 0
-            ? "past due"
-            : mission.days_remaining === 0
-              ? "today"
-              : `${mission.days_remaining} days left`}
+          {daysRemaining === null
+            ? "date pending"
+            : daysRemaining < 0
+              ? "past due"
+              : daysRemaining === 0
+                ? "today"
+                : `${daysRemaining} days left`}
         </span>
       </div>
       <div className="mission-progress">
         <div>
           <span>Mission progress</span>
-          <b>{mission.progress_percentage}%</b>
+          <b>{progress}%</b>
         </div>
         <div className="progress-track">
-          <span style={{ width: `${mission.progress_percentage}%` }} />
+          <span style={{ width: `${progress}%` }} />
         </div>
       </div>
       <div className="mission-meta">
         <span>
-          <Target size={13} /> {mission.mastered_topics}/
-          {mission.total_topics || 0} topics ready
+          <Target size={13} />
+          {mission.total_topics
+            ? `${mission.mastered_topics || 0}/${mission.total_topics} topics ready`
+            : `${progress}% subject mastery`}
         </span>
         <span>
           <CircleAlert size={13} /> {mission.difficulty_label}
@@ -145,7 +186,15 @@ function ResourceLinks({ resources }) {
   );
 }
 
-function ExamReview({ upload, subjects, busy, onClose, onChange, onConfirm }) {
+function ExamReview({
+  upload,
+  subjects,
+  busy,
+  onClose,
+  onChange,
+  onRemove,
+  onConfirm,
+}) {
   return (
     <div className="adaptive-modal-backdrop">
       <section
@@ -178,80 +227,95 @@ function ExamReview({ upload, subjects, busy, onClose, onChange, onConfirm }) {
           </p>
         )}
         <div className="exam-review-list">
-          {upload.rows?.map((row) => (
-            <div className="exam-review-row" key={row.id}>
-              <label>
-                Subject
-                <select
-                  value={row.subject || ""}
-                  onChange={(event) =>
-                    onChange(row.id, "subject", event.target.value)
-                  }
+          {upload.rows?.length ? (
+            upload.rows.map((row) => (
+              <div className="exam-review-row" key={row.id}>
+                <button
+                  className="icon-button exam-review-remove"
+                  type="button"
+                  onClick={() => onRemove(row.id)}
+                  aria-label={`Remove ${row.title || "exam subject"} from import`}
                 >
-                  <option value="">Choose subject</option>
-                  {subjects.map((subject) => (
-                    <option key={subject.id} value={subject.id}>
-                      {subject.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Exam title
-                <input
-                  value={row.title || ""}
-                  onChange={(event) =>
-                    onChange(row.id, "title", event.target.value)
-                  }
-                />
-              </label>
-              <label>
-                Date
-                <input
-                  type="date"
-                  value={row.exam_date || ""}
-                  onChange={(event) =>
-                    onChange(row.id, "exam_date", event.target.value)
-                  }
-                />
-              </label>
-              <label>
-                Starts
-                <input
-                  type="time"
-                  value={row.start_time || ""}
-                  onChange={(event) =>
-                    onChange(row.id, "start_time", event.target.value)
-                  }
-                />
-              </label>
-              <label>
-                Ends
-                <input
-                  type="time"
-                  value={row.end_time || ""}
-                  onChange={(event) =>
-                    onChange(row.id, "end_time", event.target.value)
-                  }
-                />
-              </label>
-              <label>
-                Venue
-                <input
-                  value={row.venue || ""}
-                  onChange={(event) =>
-                    onChange(row.id, "venue", event.target.value)
-                  }
-                  placeholder="Optional"
-                />
-              </label>
-              <span className="confidence-label">
-                {row.confidence
-                  ? `${row.confidence}% extraction confidence`
-                  : "Manual row"}
-              </span>
+                  <X size={15} />
+                </button>
+                <label>
+                  Subject
+                  <select
+                    value={row.subject || ""}
+                    onChange={(event) =>
+                      onChange(row.id, "subject", event.target.value)
+                    }
+                  >
+                    <option value="">Choose subject</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Exam title
+                  <input
+                    value={row.title || ""}
+                    onChange={(event) =>
+                      onChange(row.id, "title", event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  Date
+                  <input
+                    type="date"
+                    value={row.exam_date || ""}
+                    onChange={(event) =>
+                      onChange(row.id, "exam_date", event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  Starts
+                  <input
+                    type="time"
+                    value={row.start_time || ""}
+                    onChange={(event) =>
+                      onChange(row.id, "start_time", event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  Ends
+                  <input
+                    type="time"
+                    value={row.end_time || ""}
+                    onChange={(event) =>
+                      onChange(row.id, "end_time", event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  Venue
+                  <input
+                    value={row.venue || ""}
+                    onChange={(event) =>
+                      onChange(row.id, "venue", event.target.value)
+                    }
+                    placeholder="Optional"
+                  />
+                </label>
+                <span className="confidence-label">
+                  {row.confidence
+                    ? `${row.confidence}% extraction confidence`
+                    : "Manual row"}
+                </span>
+              </div>
+            ))
+          ) : (
+            <div className="adaptive-empty">
+              <X size={20} />
+              <p>All extracted exam rows were removed.</p>
             </div>
-          ))}
+          )}
         </div>
         <div className="button-row adaptive-modal-actions">
           <button className="button" onClick={onClose}>
@@ -277,9 +341,11 @@ function AdaptiveOverview({
   preview,
   loading,
   busy,
+  actionLoading,
   onNextAction,
   onGenerate,
   onCommit,
+  onRemoveBlock,
   onOpenClassroom,
 }) {
   if (loading)
@@ -347,6 +413,7 @@ function AdaptiveOverview({
             <button
               className="icon-button"
               onClick={onNextAction}
+              disabled={actionLoading}
               aria-label="Refresh next action"
             >
               <RefreshCw size={15} />
@@ -368,8 +435,9 @@ function AdaptiveOverview({
                 <button
                   className="button button-primary"
                   onClick={() => onNextAction(true)}
+                  disabled={actionLoading}
                 >
-                  Start focus
+                  {actionLoading ? "Finding focus..." : "Start focus"}
                 </button>
                 <button className="button" onClick={onGenerate}>
                   Plan around it
@@ -548,6 +616,15 @@ function AdaptiveOverview({
           <div className="preview-blocks">
             {preview.blocks.map((block, index) => (
               <div className="preview-block" key={`${block.start_at}-${index}`}>
+                <button
+                  className="icon-button preview-block-remove"
+                  type="button"
+                  onClick={() => onRemoveBlock(index)}
+                  aria-label={`Cancel ${block.title || "planned block"}`}
+                  title="Cancel this block"
+                >
+                  <X size={14} />
+                </button>
                 <span>{formatDateTime(block.start_at)}</span>
                 <b>{block.title}</b>
                 <small>
@@ -591,49 +668,78 @@ export default function PlannerPage() {
   const [preview, setPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useToastError("");
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [overviewResponse, subjectResponse] = await Promise.all([
-        adaptivePlannerService.overview({ days: 7 }),
-        get("/subjects/"),
-      ]);
-      setOverview(overviewResponse);
-      setSubjects(
-        asArray(subjectResponse).length
-          ? asArray(subjectResponse)
-          : overviewResponse.subjects || [],
-      );
+      const overviewResponse = await adaptivePlannerService.overview({
+        days: 7,
+      });
+      const normalizedOverview = normalizeOverview(overviewResponse);
+      setOverview(normalizedOverview);
+      setSubjects(normalizedOverview.subjects);
+      try {
+        const subjectResponse = await get("/subjects/");
+        setSubjects(
+          asArray(subjectResponse).length
+            ? asArray(subjectResponse)
+            : normalizedOverview.subjects,
+        );
+      } catch {
+        setSubjects(normalizedOverview.subjects);
+      }
     } catch (reason) {
       setError(reason.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [setError]);
 
   useEffect(() => {
     if (!hasSession()) {
+      setOverview(emptyOverview);
       setLoading(false);
       return;
     }
     load();
-  }, []);
+  }, [load]);
+
+  useEffect(() => {
+    const refreshOverview = () => {
+      if (hasSession()) load();
+    };
+    window.addEventListener("rise:planner-updated", refreshOverview);
+    return () =>
+      window.removeEventListener("rise:planner-updated", refreshOverview);
+  }, [load]);
 
   const nextAction = async (startFocus) => {
     if (!hasSession()) {
       setError("Sign in to use your personal study planner.");
       return;
     }
+    setActionLoading(true);
+    setError("");
     try {
       const response = await adaptivePlannerService.nextAction();
-      setAction(response);
-      if (startFocus && response.action) navigate("/focus");
+      setAction(response || null);
+      if (startFocus && response?.action) {
+        navigate("/focus", { state: { action: response.action } });
+      } else if (response?.action) {
+        document.querySelector(".adaptive-next")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }
     } catch (reason) {
+      setOverview((current) => current || emptyOverview);
       setError(reason.message);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -672,12 +778,30 @@ export default function PlannerPage() {
       await adaptivePlannerService.commit(blocks);
       setPreview(null);
       await load();
+      window.dispatchEvent(new Event("rise:planner-updated"));
     } catch (reason) {
       setError(reason.message);
     } finally {
       setBusy(false);
     }
   };
+
+  const removePreviewBlock = (index) =>
+    setPreview((current) => {
+      if (!current) return current;
+      const blocks = current.blocks.filter(
+        (_, blockIndex) => blockIndex !== index,
+      );
+      return {
+        ...current,
+        blocks,
+        scheduled_minutes: blocks.reduce(
+          (total, block) => total + Number(block.duration_minutes || 0),
+          0,
+        ),
+        status: blocks.length ? "READY" : "EMPTY",
+      };
+    });
 
   const uploadExam = async (event) => {
     if (!hasSession()) {
@@ -715,6 +839,13 @@ export default function PlannerPage() {
         row.id === rowId ? { ...row, [key]: value } : row,
       ),
     }));
+
+  const removeUploadRow = (rowId) =>
+    setUpload((current) =>
+      current
+        ? { ...current, rows: current.rows.filter((row) => row.id !== rowId) }
+        : current,
+    );
 
   const confirmUpload = async () => {
     if (!hasSession()) {
@@ -760,76 +891,88 @@ export default function PlannerPage() {
     }
   };
 
+  const plannerActions = (
+    <details className="planner-actions-menu">
+      <summary className="button button-primary planner-actions-trigger">
+        <Sparkles size={15} />
+        Planner actions
+        <ChevronDown size={14} />
+      </summary>
+      <div className="planner-actions-popover">
+        <button
+          className="button"
+          onClick={() => nextAction(false)}
+          disabled={actionLoading}
+        >
+          <Zap size={16} />
+          {actionLoading ? "Finding next action..." : "What should I do now?"}
+        </button>
+        <button className="button" onClick={generate} disabled={busy}>
+          <Sparkles size={16} />
+          Generate adaptive plan
+        </button>
+        <label
+          className={`button button-primary ${uploading || loading ? "disabled" : ""}`}
+        >
+          <Upload size={16} />
+          {uploading ? "Reading schedule..." : "Upload exam schedule"}
+          <input
+            hidden
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg,.webp"
+            onChange={uploadExam}
+            disabled={uploading || loading}
+          />
+        </label>
+      </div>
+    </details>
+  );
+
   return (
     <div className="planner-page-shell">
+      <section className="planner-timetable-section">
+        <LegacyPlannerPage plannerActions={plannerActions} />
+      </section>
       <div className="planner-adaptive-overview">
         <div className="page-header adaptive-page-header">
           <div>
             <p className="eyebrow">ADAPTIVE STUDY PLANNER</p>
             <h1>Build a week that learns.</h1>
           </div>
-          <details className="planner-actions-menu">
-            <summary className="button button-primary planner-actions-trigger">
-              <Sparkles size={15} />
-              Planner actions
-              <ChevronDown size={14} />
-            </summary>
-            <div className="planner-actions-popover">
-              <button className="button" onClick={() => nextAction(false)}>
-                <Zap size={16} />
-                What should I do now?
-              </button>
-              <button className="button" onClick={generate} disabled={busy}>
-                <Sparkles size={16} />
-                Generate adaptive plan
-              </button>
-              <label
-                className={`button button-primary ${uploading ? "disabled" : ""}`}
-              >
-                <Upload size={16} />
-                {uploading ? "Reading schedule..." : "Upload exam schedule"}
-                <input
-                  hidden
-                  type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.webp"
-                  onChange={uploadExam}
-                  disabled={uploading}
-                />
-              </label>
-            </div>
-          </details>
+          {error && (
+            <button className="button" onClick={load} disabled={loading}>
+              {loading ? "Loading..." : "Retry"}
+            </button>
+          )}
         </div>
         {error && <p className="api-error">{error}</p>}
-        {(overview || loading) && (
-            <details className="planner-adaptive-details" open>
-            <summary>
-              <span>
-                <small>ADAPTIVE OVERVIEW</small>
-                <strong>Signals, missions, and deadlines</strong>
-              </span>
-              <span className="planner-adaptive-details-action">
-                View overview
-              </span>
-            </summary>
-            <div className="planner-adaptive-details-body">
-              <AdaptiveOverview
-                overview={overview}
-                action={action}
-                preview={preview}
-                loading={loading}
-                busy={busy}
-                onNextAction={nextAction}
-                onGenerate={generate}
-                onCommit={commit}
-                onOpenClassroom={syncClassroom}
-              />
-            </div>
-          </details>
-        )}
+        <details className="planner-adaptive-details" open>
+          <summary>
+            <span>
+              <small>ADAPTIVE OVERVIEW</small>
+              <strong>Signals, missions, and deadlines</strong>
+            </span>
+            <span className="planner-adaptive-details-action">
+              View overview
+            </span>
+          </summary>
+          <div className="planner-adaptive-details-body">
+            <AdaptiveOverview
+              overview={overview || emptyOverview}
+              action={action}
+              preview={preview}
+              loading={loading}
+              busy={busy}
+              actionLoading={actionLoading}
+              onNextAction={nextAction}
+              onGenerate={generate}
+              onCommit={commit}
+              onRemoveBlock={removePreviewBlock}
+              onOpenClassroom={syncClassroom}
+            />
+          </div>
+        </details>
       </div>
-      <section className="planner-timetable-section">
-        <LegacyPlannerPage />
-      </section>
       {upload && (
         <ExamReview
           upload={upload}
@@ -837,6 +980,7 @@ export default function PlannerPage() {
           busy={busy}
           onClose={() => setUpload(null)}
           onChange={updateRow}
+          onRemove={removeUploadRow}
           onConfirm={confirmUpload}
         />
       )}

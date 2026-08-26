@@ -17,8 +17,8 @@ from apps.integrations.models_classroom import GoogleCourse, GoogleCoursework
 from apps.resources.models import Resource
 from apps.tasks.models import PlannerEvent, Task
 
-from .models import ExamScheduleUpload
-from .services.exam_schedule_parser import extract_schedule_text, parse_exam_rows
+from .models import ExamScheduleRow, ExamScheduleUpload
+from .services.exam_schedule_parser import _rows_from_gemini, extract_schedule_text, parse_exam_rows
 from .services.plan_builder import build_plan_preview
 
 
@@ -69,6 +69,39 @@ class ExamScheduleParserTests(TestCase):
         self.assertEqual(rows[0]['exam_date'], date(2017, 3, 10))
         self.assertEqual(rows[0]['start_time'], time(10, 30))
         self.assertEqual(rows[0]['end_time'], time(13, 30))
+
+    def test_ocr_table_does_not_use_header_date_when_date_follows_time(self):
+        subject = Subject.objects.create(semester=self.subject.semester, name='IKS')
+        text = 'Date : 18.08.2026\n11.00 am to 11.40 am26-08-2026 [ER\n(Wednesday)\n11.40 am to 12.20 pm Indian Knowledge Systems (IKS)'
+
+        rows = parse_exam_rows(text, [subject])
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['exam_date'], date(2026, 8, 26))
+        self.assertEqual(rows[0]['start_time'], time(11, 40))
+        self.assertEqual(rows[0]['end_time'], time(12, 20))
+
+    def test_ocr_subject_code_does_not_match_inside_another_word(self):
+        subject = Subject.objects.create(semester=self.subject.semester, name='Mathematics', code='MA')
+        text = '28-08-2026 11.00 am to 11.40 am Software Engineering & Project Management (SEPM)'
+
+        rows = parse_exam_rows(text, [subject])
+
+        self.assertEqual(rows, [])
+
+    def test_gemini_subject_code_does_not_match_inside_another_word(self):
+        subject = Subject.objects.create(semester=self.subject.semester, name='Mathematics', code='MA')
+        rows = _rows_from_gemini([{
+            'subject_name': 'Big Data Management Systems',
+            'subject_code': 'BDMS',
+            'title': 'FYBAMMC - SEM (II) - REGULAR INTERNAL EXAM TIME TABLE',
+            'exam_date': '2026-08-26',
+            'start_time': '11:00',
+            'end_time': '11:40',
+        }], [subject])
+
+        self.assertIsNone(rows[0]['subject'])
+        self.assertEqual(rows[0]['title'], 'Big Data Management Systems Exam')
 
     def test_global_written_exam_time_backfills_date_rows(self):
         history = Subject.objects.create(semester=self.subject.semester, name='History')
@@ -236,6 +269,34 @@ class AdaptivePlannerApiTests(APITestCase):
         detail = self.client.get(f"/api/adaptive-planner/exam-schedule-uploads/{response.data['id']}/")
         self.assertEqual(detail.status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_confirming_subset_rejects_removed_rows(self):
+        upload = ExamScheduleUpload.objects.create(
+            student=self.user,
+            file=SimpleUploadedFile('exam.pdf', b'%PDF-1.4', content_type='application/pdf'),
+            status=ExamScheduleUpload.Status.NEEDS_REVIEW,
+        )
+        kept = ExamScheduleRow.objects.create(upload=upload, title='Keep this exam', exam_date=date.today() + timedelta(days=2), start_time=time(9), end_time=time(11))
+        removed = ExamScheduleRow.objects.create(upload=upload, title='Remove this exam', exam_date=date.today() + timedelta(days=3), start_time=time(9), end_time=time(11))
+
+        response = self.client.post(
+            f'/api/adaptive-planner/exam-schedule-uploads/{upload.id}/confirm/',
+            {'rows': [{
+                'id': str(kept.id),
+                'subject': str(self.subject.id),
+                'title': kept.title,
+                'exam_date': kept.exam_date.isoformat(),
+                'start_time': '09:00',
+                'end_time': '11:00',
+                'venue': '',
+            }]},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Exam.objects.count(), 1)
+        removed.refresh_from_db()
+        self.assertEqual(removed.review_status, ExamScheduleRow.ReviewStatus.REJECTED)
+
     def test_overview_contains_mission_weak_topic_resource_and_classroom_deadline(self):
         Exam.objects.create(semester=self.semester, subject=self.subject, title='CN Final', exam_date=date.today() + timedelta(days=5), start_time=time(9), end_time=time(11))
         Resource.objects.create(
@@ -260,6 +321,39 @@ class AdaptivePlannerApiTests(APITestCase):
         self.assertEqual(overview.data['weak_topics'][0]['resources'][0]['title'], 'Transport notes')
         self.assertEqual(overview.data['deadline_rescue'][0]['link'], 'https://classroom.google.com/work-1')
         self.assertIn('action', overview.data['next_action'])
+
+    def test_overview_is_limited_to_current_semester_data(self):
+        current_exam = Exam.objects.create(semester=self.semester, subject=self.subject, title='Current CN Final', exam_date=date.today() + timedelta(days=2), start_time=time(9), end_time=time(11))
+        previous_semester = Semester.objects.create(student=self.user, name='Semester 4', year=2025, semester_number=4)
+        previous_subject = Subject.objects.create(semester=previous_semester, name='Previous Networks')
+        Exam.objects.create(semester=previous_semester, subject=previous_subject, title='Previous Exam', exam_date=date.today() + timedelta(days=1), start_time=time(9), end_time=time(11))
+        Resource.objects.create(student=self.user, subject=previous_subject, title='Previous notes', is_ai_ready=True, processing_status=Resource.ProcessingStatus.READY)
+
+        overview = self.client.get('/api/adaptive-planner/overview/')
+
+        self.assertEqual(overview.status_code, status.HTTP_200_OK)
+        self.assertEqual([mission['id'] for mission in overview.data['exam_missions']], [str(current_exam.id)])
+        self.assertEqual([event['title'] for event in overview.data['timetable'] if event['source'] == 'EXAM'], ['Current CN Final'])
+        self.assertEqual(overview.data['resource_count'], 0)
+
+    def test_empty_account_returns_safe_overview(self):
+        self.client.force_authenticate(self.other)
+
+        overview = self.client.get('/api/adaptive-planner/overview/')
+
+        self.assertEqual(overview.status_code, status.HTTP_200_OK)
+        self.assertEqual(overview.data['exam_missions'], [])
+        self.assertEqual(overview.data['weak_topics'], [])
+        self.assertEqual(overview.data['deadline_rescue'], [])
+        self.assertEqual(overview.data['timetable'], [])
+        self.assertIsNone(overview.data['next_action']['action'])
+
+    def test_next_action_contains_subject_and_topic_ids(self):
+        response = self.client.get('/api/adaptive-planner/next-action/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['action']['subject_id'], str(self.subject.id))
+        self.assertEqual(response.data['action']['topic_id'], str(self.topic.id))
 
     def test_plan_preview_links_subject_resources_to_study_block(self):
         resource = Resource.objects.create(

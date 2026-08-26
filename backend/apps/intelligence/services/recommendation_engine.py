@@ -14,6 +14,10 @@ def build_context(user, day=None):
     exams = list(Exam.objects.filter(semester__student=user, semester=current).select_related('subject')) if current else []
     tasks = list(Task.objects.filter(student=user).select_related('subject'))
     sessions = list(StudySession.objects.filter(student=user).select_related('subject'))
+    exam_dates = {}
+    for exam in exams:
+        if exam.subject_id not in exam_dates or exam.exam_date < exam_dates[exam.subject_id]:
+            exam_dates[exam.subject_id] = exam.exam_date
     blocked = []
     planning_date = day or timezone.localdate()
     for item in CollegeClass.objects.filter(semester__student=user, semester=current) if current else []:
@@ -24,7 +28,7 @@ def build_context(user, day=None):
         blocked.append((start, end))
     for event in GoogleCalendarEvent.objects.filter(google_calendar__google_connection__user=user, is_active=True):
         if event.start_datetime and event.end_datetime: blocked.append((event.start_datetime, event.end_datetime))
-    return {'today': day or timezone.localdate(), 'now': timezone.now(), 'subjects': subjects, 'topics': topics, 'exams': exams, 'tasks': tasks, 'sessions': sessions, 'exam_dates': {exam.subject_id: exam.exam_date for exam in exams}, 'topics_by_subject': {subject.id: list(subject.topics.all()) for subject in subjects}, 'tasks_by_subject': {subject.id: [task for task in tasks if task.subject_id == subject.id] for subject in subjects}, 'sessions_by_subject': {subject.id: [session for session in sessions if session.subject_id == subject.id] for subject in subjects}, 'blocked_windows': blocked}
+    return {'today': day or timezone.localdate(), 'now': timezone.now(), 'semester': current, 'subjects': subjects, 'topics': topics, 'exams': exams, 'tasks': tasks, 'sessions': sessions, 'exam_dates': exam_dates, 'topics_by_subject': {subject.id: list(subject.topics.all()) for subject in subjects}, 'tasks_by_subject': {subject.id: [task for task in tasks if task.subject_id == subject.id] for subject in subjects}, 'sessions_by_subject': {subject.id: [session for session in sessions if session.subject_id == subject.id] for subject in subjects}, 'blocked_windows': blocked}
 
 def calculate_priorities(context):
     topics = [calculate_topic_priority(topic, context) for topic in context['topics']]
@@ -46,7 +50,7 @@ def build_next_action(context):
     item = priorities[0]
     duration = 45 if item.get('topic') else 30
     reason = item['reasons'][0]['label'] if item.get('reasons') else 'This is currently your highest-impact academic priority.'
-    return {'action': {'type': 'STUDY_TOPIC' if item.get('topic') else 'STUDY_SUBJECT', 'subject': item.get('subject'), 'topic': item.get('topic'), 'duration_minutes': duration, 'priority_score': item['priority_score']}, 'reason': reason}
+    return {'action': {'type': 'STUDY_TOPIC' if item.get('topic') else 'STUDY_SUBJECT', 'subject_id': item.get('subject_id'), 'topic_id': item.get('topic_id'), 'subject': item.get('subject'), 'topic': item.get('topic'), 'duration_minutes': duration, 'priority_score': item['priority_score']}, 'reason': reason}
 
 def build_daily_plan(context, available_minutes=90):
     priorities = calculate_priorities(context)

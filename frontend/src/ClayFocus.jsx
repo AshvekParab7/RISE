@@ -7,32 +7,97 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { get } from "./services/api";
 import { studySessionService } from "./services/studySessionService";
 
-const asArray = (value) =>
-  Array.isArray(value) ? value : value?.results || [];
+const asArray = (value) => {
+  const items = Array.isArray(value) ? value : value?.results;
+  return Array.isArray(items) ? items : [];
+};
+const DEFAULT_PLANNED_MINUTES = 45;
+const normalizeMinutes = (value) => {
+  const minutes = Number(value);
+  return Number.isFinite(minutes) && minutes > 0
+    ? Math.min(180, Math.round(minutes))
+    : DEFAULT_PLANNED_MINUTES;
+};
+const sameId = (left, right) => String(left || "") === String(right || "");
+const findById = (items, id) => items.find((item) => sameId(item.id, id));
 
 export default function ClayFocus({ active, setActive }) {
-  const [seconds, setSeconds] = useState(45 * 60);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const routeAction = location.state?.action || null;
+  const initialMinutes = normalizeMinutes(routeAction?.duration_minutes);
+  const [plannedMinutes, setPlannedMinutes] = useState(initialMinutes);
+  const [seconds, setSeconds] = useState(initialMinutes * 60);
   const [paused, setPaused] = useState(false);
   const [session, setSession] = useState(null);
+  const [subjects, setSubjects] = useState([]);
+  const [topics, setTopics] = useState([]);
+  const [focusPlan, setFocusPlan] = useState(routeAction);
+  const [starting, setStarting] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
 
   useEffect(() => {
-    studySessionService
-      .list()
-      .then((data) => {
-        const current = asArray(data).find((item) => item.status === "ACTIVE");
-        if (current) {
-          setSession(current);
-          setActive(true);
-        }
-      })
-      .catch(() => null);
+    let mounted = true;
+    Promise.allSettled([
+      studySessionService.list(),
+      get("/subjects/"),
+      get("/topics/"),
+    ]).then(([sessionsResult, subjectsResult, topicsResult]) => {
+      if (!mounted) return;
+      const subjectItems =
+        subjectsResult.status === "fulfilled"
+          ? asArray(subjectsResult.value)
+          : [];
+      const topicItems =
+        topicsResult.status === "fulfilled" ? asArray(topicsResult.value) : [];
+      setSubjects(subjectItems);
+      setTopics(topicItems);
+      if (sessionsResult.status !== "fulfilled") return;
+      const current = asArray(sessionsResult.value).find(
+        (item) => item.status === "ACTIVE",
+      );
+      if (!current) return;
+      const minutes = normalizeMinutes(current.planned_minutes);
+      const startedAt = current.started_at
+        ? new Date(current.started_at)
+        : null;
+      const elapsedSeconds =
+        startedAt && !Number.isNaN(startedAt.getTime())
+          ? Math.max(0, Math.floor((Date.now() - startedAt.getTime()) / 1000))
+          : 0;
+      setSession(current);
+      setPlannedMinutes(minutes);
+      setSeconds(Math.max(0, minutes * 60 - elapsedSeconds));
+      setActive(true);
+      const subject = findById(subjectItems, current.subject);
+      const topic = findById(topicItems, current.topic);
+      setFocusPlan((plan) => ({
+        ...(plan || {}),
+        subject_id: current.subject,
+        topic_id: current.topic,
+        subject: subject?.name || plan?.subject || "",
+        topic: topic?.name || plan?.topic || "",
+        duration_minutes: minutes,
+      }));
+    });
+    return () => {
+      mounted = false;
+    };
   }, [setActive]);
+
+  useEffect(() => {
+    if (!routeAction || session) return;
+    const minutes = normalizeMinutes(routeAction.duration_minutes);
+    setFocusPlan(routeAction);
+    setPlannedMinutes(minutes);
+    setSeconds(minutes * 60);
+    setPaused(false);
+  }, [routeAction, session]);
 
   useEffect(() => {
     if (!active || paused || seconds === 0) return undefined;
@@ -44,53 +109,101 @@ export default function ClayFocus({ active, setActive }) {
   }, [active, paused, seconds]);
 
   const start = async () => {
-    if (session) return setActive(true);
+    if (session?.status === "ACTIVE") {
+      setActive(true);
+      return;
+    }
+    if (starting) return;
+    setStarting(true);
+    setError("");
     try {
-      const [subjectsResponse, topicsResponse] = await Promise.all([
-        get("/subjects/"),
-        get("/topics/"),
-      ]);
-      const subjects = asArray(subjectsResponse);
-      const topics = asArray(topicsResponse);
-      if (!subjects[0])
-        throw new Error("Create a subject before starting focus.");
+      const subject =
+        findById(subjects, focusPlan?.subject_id) ||
+        subjects.find((item) => item.name === focusPlan?.subject) ||
+        subjects[0] ||
+        (focusPlan?.subject_id
+          ? {
+              id: focusPlan.subject_id,
+              name: focusPlan.subject || "Study session",
+            }
+          : null);
+      if (!subject) throw new Error("Create a subject before starting focus.");
+      const subjectTopics = topics.filter((item) =>
+        sameId(item.subject?.id || item.subject, subject.id),
+      );
+      const topic =
+        subjectTopics.find((item) => sameId(item.id, focusPlan?.topic_id)) ||
+        subjectTopics.find((item) => item.name === focusPlan?.topic) ||
+        subjectTopics[0] ||
+        (focusPlan?.topic_id
+          ? { id: focusPlan.topic_id, name: focusPlan.topic || "" }
+          : null);
+      const minutes = normalizeMinutes(focusPlan?.duration_minutes);
       const response = await studySessionService.create({
-        subject: subjects[0].id,
-        topic:
-          topics.find((item) => item.subject === subjects[0].id)?.id || null,
-        planned_minutes: 45,
+        subject: subject.id,
+        topic: topic?.id || null,
+        planned_minutes: minutes,
         status: "ACTIVE",
         started_at: new Date().toISOString(),
       });
       setSession(response);
+      setFocusPlan({
+        ...(focusPlan || {}),
+        subject_id: subject.id,
+        topic_id: topic?.id || null,
+        subject: subject.name,
+        topic: topic?.name || "",
+        duration_minutes: minutes,
+      });
+      setPlannedMinutes(minutes);
+      setSeconds(minutes * 60);
       setActive(true);
       setPaused(false);
     } catch (reason) {
       setError(reason.message);
+    } finally {
+      setStarting(false);
     }
   };
 
   const finish = async (status) => {
+    if (finishing) return;
     if (!session) {
       setActive(false);
       return;
     }
+    setFinishing(true);
+    setError("");
     try {
       const response = await studySessionService.update(session.id, {
         status,
-        actual_minutes: Math.max(0, 45 - Math.ceil(seconds / 60)),
+        actual_minutes: Math.min(
+          plannedMinutes,
+          Math.max(0, Math.floor((plannedMinutes * 60 - seconds) / 60)),
+        ),
         ended_at: new Date().toISOString(),
       });
       setSession(response);
       setActive(false);
+      setPaused(false);
       if (status === "COMPLETED") navigate("/knowledge-check");
     } catch (reason) {
       setError(reason.message);
+    } finally {
+      setFinishing(false);
     }
   };
 
   const mins = String(Math.floor(seconds / 60)).padStart(2, "0");
   const secs = String(seconds % 60).padStart(2, "0");
+  const currentSubject = findById(
+    subjects,
+    session?.subject || focusPlan?.subject_id,
+  );
+  const currentTopic = findById(topics, session?.topic || focusPlan?.topic_id);
+  const subjectName =
+    currentSubject?.name || focusPlan?.subject || "Study session";
+  const topicName = currentTopic?.name || focusPlan?.topic || "";
 
   return (
     <div className="clay-focus page-enter">
@@ -98,7 +211,7 @@ export default function ClayFocus({ active, setActive }) {
         <p className="eyebrow">
           <ShieldCheck size={15} /> DEEP FOCUS SESSION
         </p>
-        <h1>Transport Layer</h1>
+        <h1>{topicName || subjectName}</h1>
         <span className={active ? "focus-live" : "focus-ready"}>
           {active
             ? paused
@@ -119,7 +232,11 @@ export default function ClayFocus({ active, setActive }) {
         </div>
         <div className="clay-focus-controls">
           {!active ? (
-            <button className="clay-action primary" onClick={start}>
+            <button
+              className="clay-action primary"
+              onClick={start}
+              disabled={starting}
+            >
               <Play size={16} /> Start session
             </button>
           ) : (
@@ -134,6 +251,7 @@ export default function ClayFocus({ active, setActive }) {
               <button
                 className="clay-action primary"
                 onClick={() => finish("COMPLETED")}
+                disabled={finishing}
               >
                 <CheckCircle2 size={16} /> Finish session
               </button>
@@ -142,13 +260,14 @@ export default function ClayFocus({ active, setActive }) {
           <button
             className="clay-action clay-quit"
             onClick={() => finish("ABANDONED")}
+            disabled={finishing}
           >
             <X size={15} /> Quit session
           </button>
           <button
             className="clay-round-button"
             onClick={() => {
-              setSeconds(45 * 60);
+              setSeconds(plannedMinutes * 60);
               setPaused(false);
             }}
             aria-label="Reset timer"
@@ -168,9 +287,9 @@ export default function ClayFocus({ active, setActive }) {
           </div>
         </div>
         <div className="focus-topic">
-          <span>COMPUTER NETWORKS</span>
-          <b>Transport Layer</b>
-          <small>45 minute deep work block</small>
+          <span>{subjectName.toUpperCase()}</span>
+          <b>{topicName || "Focused study"}</b>
+          <small>{plannedMinutes} minute deep work block</small>
         </div>
       </div>
     </div>

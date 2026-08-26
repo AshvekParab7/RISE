@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.response import Response
@@ -6,17 +7,49 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from apps.academics.models import Subject, Topic
 from apps.resources.models import Resource
-from .models import GeneratedQuestion, GeneratedTest, TestSubmission, TutorConversation
+from .models import GeneratedQuestion, GeneratedTest, PlannerConversation, PlannerMessage, TestSubmission, TutorConversation
 from .serializers import TestGenerateSerializer, TestSubmissionSerializer, TutorConversationSerializer, TutorRequestSerializer
+from .services.gemini import GeminiUnavailable
 from .services.llm import AIUnavailable, AIProviderError
 from .services.tutor import pdf_tutor_answer, public_tutor_answer, tutor_answer
 from .services.assessment_service import generate_assessment
 from .services.mastery_engine import apply_assessment_results
 from apps.intelligence.services.recommendation_engine import build_context, build_daily_plan, build_next_action
-from apps.integrations.models_calendar import GoogleCalendarEvent
-from apps.tasks.models import PlannerEvent
 from .serializers import PlannerRequestSerializer
-from .services.planner import planner_turn
+from .services.planner import build_planner_context, fallback_planner_turn, planner_turn
+
+
+def _planner_history(conversation):
+    return [
+        {
+            'role': 'user' if message.role == PlannerMessage.Role.USER else 'assistant',
+            'content': message.content,
+        }
+        for message in conversation.messages.order_by('created_at', 'id')
+    ]
+
+
+def _planner_conversation_data(conversation, include_messages=False):
+    data = {
+        'id': str(conversation.id),
+        'title': conversation.title or 'New planner chat',
+        'created_at': conversation.created_at,
+        'updated_at': conversation.updated_at,
+    }
+    if hasattr(conversation, 'message_count'):
+        data['message_count'] = conversation.message_count
+    if include_messages:
+        data['messages'] = [
+            {
+                'id': str(message.id),
+                'role': 'user' if message.role == PlannerMessage.Role.USER else 'assistant',
+                'content': message.content,
+                'created_at': message.created_at,
+            }
+            for message in conversation.messages.order_by('created_at', 'id')
+        ]
+    return data
+
 
 class PlannerView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
@@ -26,25 +59,84 @@ class PlannerView(APIView):
         serializer = PlannerRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        planner_events = PlannerEvent.objects.filter(student=request.user).values(
-            'title', 'subtopics', 'start_at', 'duration_minutes', 'event_type'
+        conversation_id = data.get('conversation_id')
+        conversation = get_object_or_404(
+            PlannerConversation.objects.prefetch_related('messages'),
+            id=conversation_id,
+            student=request.user,
+        ) if conversation_id else PlannerConversation.objects.create(
+            student=request.user,
+            title=' '.join(data['message'].split())[:200],
         )
-        imported_events = GoogleCalendarEvent.objects.filter(
-            google_calendar__google_connection__user=request.user, is_active=True
-        ).values('summary', 'start_datetime', 'end_datetime', 'all_day')
-        calendar = [
-            {'title': item['title'], 'subtopic': item['subtopics'], 'start': item['start_at'].isoformat(), 'duration': item['duration_minutes'], 'source': 'RISE'}
-            for item in planner_events
-        ] + [
-            {'title': item['summary'], 'start': item['start_datetime'].isoformat() if item['start_datetime'] else None, 'end': item['end_datetime'].isoformat() if item['end_datetime'] else None, 'all_day': item['all_day'], 'source': 'GOOGLE_CALENDAR'}
-            for item in imported_events
-        ]
+        history = _planner_history(conversation) if conversation_id else data.get('history', [])
+        if not history or history[-1].get('role') != 'user' or history[-1].get('content') != data['message']:
+            history = [*history, {'role': 'user', 'content': data['message']}]
+        PlannerMessage.objects.create(
+            conversation=conversation,
+            role=PlannerMessage.Role.USER,
+            content=data['message'],
+        )
+        planner_context = build_planner_context(request.user, data.get('selected_day'))
         context = build_context(request.user)
         progress = {'next_action': build_next_action(context), 'daily_plan': build_daily_plan(context)}
         try:
-            return Response(planner_turn(data['message'], data['history'], calendar, progress))
-        except (AIUnavailable, AIProviderError):
-            return Response({'detail': 'RISE Planner is temporarily unavailable. Please try again shortly.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            result = planner_turn(data['message'], history, planner_context['calendar'], progress, planner_context)
+        except (AIUnavailable, AIProviderError, GeminiUnavailable):
+            result = fallback_planner_turn(data['message'], history, planner_context)
+        reply = str(result.get('reply') or 'Tell me what you want to study and when you are free.')
+        PlannerMessage.objects.create(
+            conversation=conversation,
+            role=PlannerMessage.Role.ASSISTANT,
+            content=reply,
+        )
+        conversation.save(update_fields=('updated_at',))
+        return Response({
+            **result,
+            'reply': reply,
+            'conversation_id': str(conversation.id),
+            'conversation_title': conversation.title or 'New planner chat',
+        })
+
+
+class PlannerConversationListView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        conversations = PlannerConversation.objects.filter(
+            student=request.user,
+        ).annotate(message_count=Count('messages')).order_by('-updated_at')[:30]
+        return Response([_planner_conversation_data(conversation) for conversation in conversations])
+
+
+class PlannerConversationDetailView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, conversation_id):
+        conversation = get_object_or_404(
+            PlannerConversation.objects.prefetch_related('messages'),
+            id=conversation_id,
+            student=request.user,
+        )
+        return Response(_planner_conversation_data(conversation, include_messages=True))
+
+
+class PlannerConversationMessageView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request, conversation_id):
+        conversation = get_object_or_404(PlannerConversation, id=conversation_id, student=request.user)
+        content = str(request.data.get('content') or '').strip()
+        role = str(request.data.get('role') or '').upper()
+        if not content or role not in (PlannerMessage.Role.USER, PlannerMessage.Role.ASSISTANT):
+            return Response({'detail': 'A message role and content are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        message = PlannerMessage.objects.create(conversation=conversation, role=role, content=content)
+        conversation.save(update_fields=('updated_at',))
+        return Response({
+            'id': str(message.id),
+            'role': role.lower(),
+            'content': message.content,
+            'created_at': message.created_at,
+        }, status=status.HTTP_201_CREATED)
 
 class TutorView(APIView):
     permission_classes = (permissions.AllowAny,)

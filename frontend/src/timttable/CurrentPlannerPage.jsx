@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  CalendarDays,
   Check,
   ChevronDown,
+  History,
   MessageCircle,
   Pencil,
   Plus,
@@ -23,8 +23,10 @@ import {
   writeLocalPlannerEvents,
 } from "./localPlanner";
 
-const useToast = () => ({ confirm: async message => !message || window.confirm(message) });
-const useToastError = initial => useState(initial);
+const useToast = () => ({
+  confirm: async (message) => !message || window.confirm(message),
+});
+const useToastError = (initial) => useState(initial);
 
 const colors = ["#6D5EF5", "#E7984A", "#3E8F8B", "#D65B72", "#4D7BC4"];
 const asArray = (value) =>
@@ -213,18 +215,108 @@ function EventCard({ event, onEdit, onDelete }) {
   );
 }
 
-function PlannerChat({ events, onCreate, selectedDay, subjects }) {
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content:
-        "Tell me what you want to study and when you are available. I will ask only for the details needed to make a realistic block.",
-    },
-  ]);
+function PlannerChat({
+  events,
+  onCreate,
+  selectedDay,
+  subjects,
+  plannerContext,
+}) {
+  const initialMessage = {
+    role: "assistant",
+    content:
+      "Tell me what you want to study and when you are available. I will ask only for the details needed to make a realistic block.",
+  };
+  const [messages, setMessages] = useState([initialMessage]);
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(null);
   const [question, setQuestion] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const [conversations, setConversations] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const messagesRef = useRef(null);
+  const [dateChoice, setDateChoice] = useState(selectedDay);
+  const [timeStart, setTimeStart] = useState("09:00");
+  const [timeEnd, setTimeEnd] = useState("10:00");
+
+  useEffect(() => {
+    const container = messagesRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }, [messages, loading, pending, question, historyLoading]);
+
+  useEffect(() => {
+    if (question?.id === "day") setDateChoice(selectedDay);
+    if (question?.id === "availability") {
+      setTimeStart("09:00");
+      setTimeEnd("10:00");
+    }
+  }, [question?.id, selectedDay]);
+
+  useEffect(() => {
+    if (!hasSession()) return;
+    aiService
+      .listPlannerConversations()
+      .then((items) => setConversations(Array.isArray(items) ? items : []))
+      .catch(() => null);
+  }, []);
+
+  const rememberConversation = (response) => {
+    if (!response?.conversation_id) return;
+    const conversation = {
+      id: response.conversation_id,
+      title: response.conversation_title || "New planner chat",
+      updated_at: new Date().toISOString(),
+    };
+    setConversationId(response.conversation_id);
+    setConversations((items) => [
+      conversation,
+      ...items.filter((item) => item.id !== conversation.id),
+    ]);
+  };
+
+  const startNewChat = () => {
+    setConversationId(null);
+    setMessages([initialMessage]);
+    setInput("");
+    setPending(null);
+    setQuestion(null);
+  };
+
+  const openConversation = async (id) => {
+    if (!id || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const conversation = await aiService.getPlannerConversation(id);
+      const restored = (conversation.messages || []).map((message) => ({
+        role: String(message.role || "assistant").toLowerCase(),
+        content: message.content,
+      }));
+      setMessages(restored.length ? restored : [initialMessage]);
+      setConversationId(id);
+      setPending(null);
+      setQuestion(null);
+    } catch {
+      setMessages((items) => [
+        ...items,
+        {
+          role: "assistant",
+          content: "That planner conversation could not be loaded.",
+        },
+      ]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const saveChatMessage = async (role, content) => {
+    if (!conversationId || !hasSession()) return;
+    await aiService
+      .appendPlannerMessage(conversationId, { role, content })
+      .catch(() => null);
+  };
+
   const send = async (text) => {
     const message = (text || input).trim();
     if (!message || loading) return;
@@ -233,7 +325,7 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
     setMessages(next);
     setQuestion(null);
     if (pending && /^(yes|y|confirm|add|okay|ok)\b/i.test(message)) {
-      await confirm(pending.plan);
+      await confirm(pending.plan, message);
       return;
     }
     setLoading(true);
@@ -242,6 +334,8 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
         ? await aiService.planner({
             message,
             history: next,
+            conversation_id: conversationId || undefined,
+            selected_day: selectedDay,
             calendar: events.map((event) => ({
               title: event.title,
               start: event.start_at,
@@ -254,6 +348,7 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
             events,
             selectedDay,
             subjects,
+            plannerContext,
           });
       setMessages((items) => [
         ...items,
@@ -263,6 +358,7 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
             response.reply || "I need one more detail before I can plan that.",
         },
       ]);
+      rememberConversation(response);
       setQuestion(response.question || null);
       setPending(response.ready ? response : null);
     } catch (reason) {
@@ -272,6 +368,7 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
           events,
           selectedDay,
           subjects,
+          plannerContext,
         });
         setMessages((items) => [
           ...items,
@@ -293,10 +390,14 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
       setLoading(false);
     }
   };
-  const confirm = async (plan = pending?.plan) => {
+  const confirm = async (
+    plan = pending?.plan,
+    confirmation = "Yes, add it",
+  ) => {
     if (!plan?.length || loading) return false;
     setLoading(true);
     try {
+      await saveChatMessage("USER", confirmation);
       const created = await onCreate(plan);
       if (!created) throw new Error("The study block could not be saved.");
       setMessages((items) => [
@@ -306,6 +407,10 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
           content: "Added the confirmed study blocks to your RISE planner.",
         },
       ]);
+      await saveChatMessage(
+        "ASSISTANT",
+        "Added the confirmed study blocks to your RISE planner.",
+      );
       setPending(null);
       setQuestion(null);
       return true;
@@ -317,6 +422,10 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
           content: reason.message || "The study block could not be saved.",
         },
       ]);
+      await saveChatMessage(
+        "ASSISTANT",
+        reason.message || "The study block could not be saved.",
+      );
       return false;
     } finally {
       setLoading(false);
@@ -334,8 +443,47 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
               : "Local planning is saved in this browser."}
           </small>
         </div>
+        <div className="planner-chat-head-actions">
+          <button
+            className="planner-chat-new"
+            type="button"
+            onClick={startNewChat}
+            disabled={loading || historyLoading}
+          >
+            <Plus size={13} /> New chat
+          </button>
+          <details className="planner-chat-history">
+            <summary className="planner-chat-history-trigger">
+              <History size={14} /> History <ChevronDown size={13} />
+            </summary>
+            <div className="planner-chat-history-menu">
+              <button type="button" onClick={startNewChat}>
+                <Plus size={13} /> New chat
+              </button>
+              {historyLoading && <small>Loading saved chats...</small>}
+              {!historyLoading && !conversations.length && (
+                <small>No saved planner chats yet.</small>
+              )}
+              {conversations.map((conversation) => (
+                <button
+                  type="button"
+                  className={conversation.id === conversationId ? "active" : ""}
+                  key={conversation.id}
+                  onClick={() => openConversation(conversation.id)}
+                >
+                  <span>{conversation.title || "New planner chat"}</span>
+                  <small>
+                    {conversation.updated_at
+                      ? new Date(conversation.updated_at).toLocaleDateString()
+                      : ""}
+                  </small>
+                </button>
+              ))}
+            </div>
+          </details>
+        </div>
       </div>
-      <div className="planner-chat-messages">
+      <div className="planner-chat-messages" ref={messagesRef}>
         {messages.map((message, index) => (
           <div
             className={`planner-chat-message ${message.role}`}
@@ -374,6 +522,54 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
             ))}
           </div>
         )}
+        {question?.id === "day" && !pending && (
+          <div className="planner-chat-picker planner-chat-date-picker">
+            <label>
+              Choose a date
+              <input
+                type="date"
+                value={dateChoice}
+                onChange={(event) => setDateChoice(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => send(dateChoice)}
+              disabled={loading || !dateChoice}
+            >
+              Use date
+            </button>
+          </div>
+        )}
+        {question?.id === "availability" && !pending && (
+          <div className="planner-chat-picker planner-chat-time-picker">
+            <label>
+              From
+              <input
+                type="time"
+                value={timeStart}
+                onChange={(event) => setTimeStart(event.target.value)}
+              />
+            </label>
+            <label>
+              To
+              <input
+                type="time"
+                value={timeEnd}
+                onChange={(event) => setTimeEnd(event.target.value)}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => send(`I am free from ${timeStart} to ${timeEnd}`)}
+              disabled={
+                loading || !timeStart || !timeEnd || timeEnd <= timeStart
+              }
+            >
+              Use time
+            </button>
+          </div>
+        )}
         {loading && (
           <div className="planner-chat-message assistant">
             RISE is thinking...
@@ -396,9 +592,15 @@ function PlannerChat({ events, onCreate, selectedDay, subjects }) {
   );
 }
 
-export default function PlannerPage() {
+export default function PlannerPage({ plannerActions }) {
   const { confirm } = useToast();
   const [plannerSubjects, setPlannerSubjects] = useState([]);
+  const [plannerContext, setPlannerContext] = useState({
+    exams: [],
+    tasks: [],
+    classes: [],
+    resources: [],
+  });
   const [events, setEvents] = useState([]);
   const [view, setView] = useState("day");
   const [selectedDay, setSelectedDay] = useState(dateKey(new Date()));
@@ -429,6 +631,24 @@ export default function PlannerPage() {
       .catch((reason) => setError(reason.message));
   }, []);
   useEffect(() => {
+    if (!hasSession()) return;
+    Promise.all([
+      get("/exams/"),
+      get("/tasks/"),
+      get("/college-timetable/"),
+      get("/resources/"),
+    ])
+      .then(([exams, tasks, classes, resources]) =>
+        setPlannerContext({
+          exams: asArray(exams),
+          tasks: asArray(tasks),
+          classes: asArray(classes),
+          resources: asArray(resources),
+        }),
+      )
+      .catch(() => null);
+  }, []);
+  useEffect(() => {
     document.documentElement.removeAttribute("data-theme");
   }, []);
   const save = async (payload) => {
@@ -452,6 +672,7 @@ export default function PlannerPage() {
         writeLocalPlannerEvents(next);
         return next;
       });
+      window.dispatchEvent(new Event("rise:planner-updated"));
       setEditor(null);
       return;
     }
@@ -470,6 +691,7 @@ export default function PlannerPage() {
           ? items.map((item) => (item.id === editor.id ? response : item))
           : [...items, response],
       );
+      window.dispatchEvent(new Event("rise:planner-updated"));
       setEditor(null);
     } catch (reason) {
       setError(reason.message);
@@ -492,25 +714,39 @@ export default function PlannerPage() {
         writeLocalPlannerEvents(next);
         return next;
       });
+      window.dispatchEvent(new Event("rise:planner-updated"));
       return;
     }
     try {
       await plannerService.remove(event.id);
       setEvents((items) => items.filter((item) => item.id !== event.id));
+      window.dispatchEvent(new Event("rise:planner-updated"));
     } catch (reason) {
       setError(reason.message);
     }
   };
   const createPlan = async (plan) => {
     const payloads = plan.map((item) => {
-      const day = resolvePlanDay(item.day, weekDays, selectedDay);
+      const day = item.date || resolvePlanDay(item.day, weekDays, selectedDay);
+      const subject = plannerSubjects.find(
+        (plannerSubject) =>
+          String(plannerSubject.id) === String(item.subject) ||
+          plannerSubject.name?.toLowerCase() ===
+            String(item.subject || "").toLowerCase(),
+      );
+      const resourceNote = item.resource_titles?.length
+        ? `Use: ${item.resource_titles.slice(0, 3).join(", ")}`
+        : "";
       return {
-        title: item.title,
-        subtopics: item.subtopic || "",
+        title: item.title || "Adaptive study block",
+        subtopics: [item.subtopic || item.subtopics, resourceNote]
+          .filter(Boolean)
+          .join(" | "),
         start_at: toIso(`${day}T${item.time}`),
-        duration_minutes: item.duration || 45,
-        color: colors[0],
+        duration_minutes: item.duration || item.duration_minutes || 45,
+        color: subject?.color || colors[0],
         event_type: "STUDY",
+        subject: subject?.id || item.subject || null,
       };
     });
     if (!hasSession()) {
@@ -522,10 +758,12 @@ export default function PlannerPage() {
         writeLocalPlannerEvents(next);
         return next;
       });
+      window.dispatchEvent(new Event("rise:planner-updated"));
       return true;
     }
     for (const payload of payloads) await plannerService.create(payload);
     await load();
+    window.dispatchEvent(new Event("rise:planner-updated"));
     return true;
   };
   const shown = events
@@ -537,31 +775,6 @@ export default function PlannerPage() {
     .sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
   return (
     <>
-      <div className="page-header">
-        <details className="planner-calendar-actions">
-          <summary className="button planner-calendar-actions-trigger">
-            <CalendarDays size={15} />
-            Calendar actions
-            <ChevronDown size={14} />
-          </summary>
-          <div className="planner-calendar-actions-menu">
-            <button
-              className="button"
-              onClick={() => setView(view === "day" ? "week" : "day")}
-            >
-              <CalendarDays size={16} />
-              {view === "day" ? "Week view" : "Day view"}
-            </button>
-            <button
-              className="button button-primary"
-              onClick={() => setEditor({})}
-            >
-              <Plus size={16} />
-              Add event
-            </button>
-          </div>
-        </details>
-      </div>
       {error && <p className="api-error">{error}</p>}
       {editor && (
         <EventForm
@@ -593,6 +806,16 @@ export default function PlannerPage() {
           value={selectedDay}
           onChange={(event) => setSelectedDay(event.target.value)}
         />
+        <div className="planner-toolbar-actions">
+          {plannerActions}
+          <button
+            className="button button-primary"
+            onClick={() => setEditor({})}
+          >
+            <Plus size={16} />
+            Add event
+          </button>
+        </div>
       </div>
       <div className="planner-with-chat">
         <main className="planner-main">
@@ -647,6 +870,7 @@ export default function PlannerPage() {
           onCreate={createPlan}
           selectedDay={selectedDay}
           subjects={plannerSubjects}
+          plannerContext={plannerContext}
         />
       </div>
     </>

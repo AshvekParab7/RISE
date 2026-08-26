@@ -92,6 +92,7 @@ import { ClayAnalytics, ClayDashboard, ClaySettings } from "./ClayPages";
 import ClayFocusPage from "./ClayFocus";
 import { useWorkspace, WorkspaceContext } from "./context/WorkspaceContext";
 import { useAuth } from "./context/auth";
+import { get, hasSession } from "./services/api";
 import "./interactionBridge";
 import "./sidebar.css";
 import "./avatar.css";
@@ -182,6 +183,158 @@ function Stat({ label, value, trend, icon: Icon, accent = "purple" }) {
   );
 }
 
+const asArray = (value) =>
+  Array.isArray(value) ? value : value?.results || [];
+const parseNotificationDate = (value) => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+const notificationDateLabel = (value) =>
+  value.toLocaleDateString([], { month: "short", day: "numeric" });
+const notificationTimeLabel = (value) =>
+  value.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+function buildNotifications({
+  tasks = [],
+  events = [],
+  exams = [],
+  sessions = [],
+  subjects = [],
+  streak = mockStudent.streak,
+}) {
+  const notifications = [];
+  const now = new Date();
+  const subjectNames = Object.fromEntries(
+    subjects.map((subject) => [
+      String(subject.id),
+      subject.name || subject.title || "Your subject",
+    ]),
+  );
+  const add = (type, text, tone, path) =>
+    notifications.push({
+      id: `${type}-${notifications.length}`,
+      type,
+      text,
+      tone,
+      path,
+    });
+
+  const upcomingExam = exams
+    .map((exam) => ({
+      exam,
+      date: parseNotificationDate(exam.exam_date || exam.date),
+    }))
+    .filter(({ date }) => date && date.toDateString() >= now.toDateString())
+    .sort((left, right) => left.date - right.date)[0];
+  if (upcomingExam) {
+    const days = Math.max(
+      0,
+      Math.ceil((upcomingExam.date - now) / (24 * 60 * 60 * 1000)),
+    );
+    const subject =
+      upcomingExam.exam.subject_name ||
+      subjectNames[String(upcomingExam.exam.subject)] ||
+      upcomingExam.exam.subject ||
+      "your subject";
+    add(
+      "EXAM",
+      `${subject} exam ${days ? `in ${days} days` : "is today"}.`,
+      days <= 2 ? "red" : "orange",
+      "/planner",
+    );
+  }
+
+  const nextBlock = events
+    .map((event) => ({ event, date: parseNotificationDate(event.start_at) }))
+    .filter(({ date }) => date && date >= now)
+    .sort((left, right) => left.date - right.date)[0];
+  if (nextBlock && nextBlock.date - now <= 24 * 60 * 60 * 1000) {
+    add(
+      "SESSION",
+      `${nextBlock.event.title || "Study block"} starts ${notificationDateLabel(nextBlock.date)} at ${notificationTimeLabel(nextBlock.date)}.`,
+      "green",
+      "/planner",
+    );
+  }
+
+  const upcomingTask = tasks
+    .filter(
+      (task) => task.status !== "completed" && task.status !== "COMPLETED",
+    )
+    .map((task) => ({
+      task,
+      date: parseNotificationDate(task.deadline || task.due),
+    }))
+    .filter(({ date }) => date)
+    .sort((left, right) => left.date - right.date)[0];
+  if (upcomingTask) {
+    const subject =
+      subjectNames[String(upcomingTask.task.subject)] ||
+      upcomingTask.task.subject ||
+      "Academic task";
+    const taskStatus =
+      upcomingTask.date < now
+        ? `overdue since ${notificationDateLabel(upcomingTask.date)}`
+        : `due ${notificationDateLabel(upcomingTask.date)}`;
+    add(
+      "DEADLINE",
+      `${upcomingTask.task.title} is ${taskStatus}${subject ? ` · ${subject}` : ""}.`,
+      "red",
+      "/tasks",
+    );
+  }
+
+  const activeSession = sessions.find((session) => session.status === "ACTIVE");
+  if (activeSession) {
+    add(
+      "SESSION",
+      "Your focus session is active. Keep the next few minutes distraction-free.",
+      "green",
+      "/focus",
+    );
+  }
+
+  const reviewSubject = subjects.find(
+    (subject) => (subject.mastery_percentage ?? subject.mastery ?? 100) < 60,
+  );
+  if (reviewSubject) {
+    add(
+      "REVIEW",
+      `Spaced repetition review is ready for ${reviewSubject.name}.`,
+      "purple",
+      "/planner",
+    );
+  }
+
+  const todayKey = now.toISOString().slice(0, 10);
+  const todayBlocks = events.filter(
+    (event) => event.start_at?.slice(0, 10) === todayKey,
+  );
+  if (!todayBlocks.length) {
+    add(
+      "STREAK",
+      `Your ${streak}-day streak is ready for a small study block today.`,
+      "orange",
+      "/planner",
+    );
+  }
+
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 6);
+  const weekBlocks = events.filter((event) => {
+    const date = parseNotificationDate(event.start_at);
+    return date && date >= weekStart && date <= now;
+  }).length;
+  add(
+    "PROGRESS",
+    `This week: ${weekBlocks} study block${weekBlocks === 1 ? "" : "s"} on your timetable.`,
+    "green",
+    "/progress",
+  );
+
+  return notifications.slice(0, 6);
+}
+
 function App() {
   const [subjects, setSubjects] = useState([...mockSubjects]);
   const [tasks, setTasks] = useState(mockTasks);
@@ -191,10 +344,55 @@ function App() {
     classroom: false,
     calendar: false,
   });
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: "CN Lab Report is due tomorrow", tone: "red" },
-    { id: 2, text: "New Classroom material added", tone: "purple" },
-  ]);
+  const [notifications, setNotifications] = useState(() =>
+    buildNotifications({
+      tasks: mockTasks,
+      events: mockEvents,
+      subjects: mockSubjects,
+    }),
+  );
+  useEffect(() => {
+    let mounted = true;
+    const refreshNotifications = async () => {
+      if (!hasSession()) {
+        setNotifications(
+          buildNotifications({
+            tasks,
+            events: mockEvents,
+            subjects,
+          }),
+        );
+        return;
+      }
+      const results = await Promise.allSettled([
+        get("/planner-events/"),
+        get("/exams/"),
+        get("/tasks/"),
+        get("/study-sessions/"),
+        get("/subjects/"),
+      ]);
+      if (!mounted) return;
+      const read = (result) =>
+        result.status === "fulfilled" ? asArray(result.value) : [];
+      setNotifications(
+        buildNotifications({
+          events: read(results[0]),
+          exams: read(results[1]),
+          tasks: read(results[2]),
+          sessions: read(results[3]),
+          subjects: read(results[4]),
+        }),
+      );
+    };
+    refreshNotifications();
+    const interval = window.setInterval(refreshNotifications, 60_000);
+    window.addEventListener("rise:planner-updated", refreshNotifications);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+      window.removeEventListener("rise:planner-updated", refreshNotifications);
+    };
+  }, [tasks, subjects]);
   const value = {
     subjects,
     setSubjects,
@@ -306,16 +504,33 @@ function Shell() {
                 onClick={() => setShowNotifications(!showNotifications)}
               >
                 <Bell size={18} />
-                <i />
+                {notifications.length > 0 && <i />}
               </button>
               {showNotifications && (
                 <div className="notification-pop">
-                  {notifications.map((note) => (
-                    <div key={note.id}>
-                      <span className={`signal ${note.tone}`}>●</span>
-                      {note.text}
-                    </div>
-                  ))}
+                  <div className="notification-pop-head">
+                    <b>Notifications</b>
+                    <span>{notifications.length}</span>
+                  </div>
+                  {notifications.length ? (
+                    notifications.map((note) => (
+                      <button
+                        key={note.id}
+                        onClick={() => {
+                          setShowNotifications(false);
+                          if (note.path) navigate(note.path);
+                        }}
+                      >
+                        <span className={`signal ${note.tone}`}>●</span>
+                        <span>
+                          <small>{note.type}</small>
+                          {note.text}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="notification-empty">You are all caught up.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -346,7 +561,10 @@ function Shell() {
             />
             <Route path="/knowledge-check" element={<KnowledgeCheck />} />
             <Route path="/tutor" element={<AshvekStudyCoachPage />} />
-            <Route path="/ashvek/study-coach" element={<AshvekStudyCoachPage />} />
+            <Route
+              path="/ashvek/study-coach"
+              element={<AshvekStudyCoachPage />}
+            />
             <Route path="/tutor-legacy" element={<ConnectedTutorPage />} />
             <Route path="/learn/youtube" element={<LearnFromYouTube />} />
             <Route path="/tests" element={<Tests />} />

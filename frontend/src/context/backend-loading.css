@@ -1,0 +1,218 @@
+.backend-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 20px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(247, 240, 255, 0.95),
+      rgba(238, 245, 242, 0.96)
+    ),
+    #f7f5fa;
+  color: #24212c;
+}
+
+.backend-loading::before,
+.backend-loading::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.backend-loading::before {
+  top: 12%;
+  left: 7%;
+  width: 180px;
+  height: 180px;
+  border: 1px solid rgba(151, 51, 238, 0.14);
+  border-radius: 42px;
+  transform: rotate(18deg);
+}
+
+.backend-loading::after {
+  right: 9%;
+  bottom: 13%;
+  width: 120px;
+  height: 120px;
+  border: 1px solid rgba(62, 143, 139, 0.2);
+  border-radius: 50%;
+}
+
+.backend-loading-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: center;
+  gap: 34px;
+  width: min(620px, 100%);
+  padding: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow:
+    18px 20px 42px rgba(112, 91, 125, 0.14),
+    -10px -10px 28px rgba(255, 255, 255, 0.74);
+  backdrop-filter: blur(12px);
+}
+
+.backend-loading-brand {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 150px;
+  height: 150px;
+}
+
+.backend-loading-mark {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  background: #302440;
+  color: #fff;
+  font:
+    800 48px/1 "Manrope",
+    sans-serif;
+  box-shadow:
+    8px 10px 0 #e8ddff,
+    0 14px 24px rgba(48, 36, 64, 0.2);
+  animation: backend-loading-lift 2.4s ease-in-out infinite;
+}
+
+.backend-loading-line {
+  position: absolute;
+  width: 126px;
+  height: 126px;
+  border: 1px solid rgba(151, 51, 238, 0.28);
+  border-left-color: transparent;
+  border-radius: 50%;
+  animation: backend-loading-spin 2.8s linear infinite;
+}
+
+.backend-loading-spark {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation: backend-loading-blink 1.8s ease-in-out infinite;
+}
+
+.backend-loading-spark-one {
+  top: 7px;
+  right: 13px;
+  background: #e7984a;
+}
+
+.backend-loading-spark-two {
+  bottom: 12px;
+  left: 17px;
+  background: #3e8f8b;
+  animation-delay: 0.6s;
+}
+
+.backend-loading-copy .eyebrow {
+  margin-bottom: 10px;
+  color: #765a5c;
+}
+
+.backend-loading-copy h1 {
+  max-width: 360px;
+  font-size: clamp(24px, 4vw, 34px);
+  letter-spacing: 0;
+  line-height: 1.12;
+}
+
+.backend-loading-message {
+  max-width: 360px;
+  margin-top: 12px;
+  color: #78838a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.backend-loading-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 22px;
+}
+
+.backend-loading-signals span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 1px solid rgba(151, 51, 238, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.58);
+  color: #6e6875;
+  font-size: 10px;
+}
+
+.backend-loading-signals span:nth-child(2) svg {
+  color: #3e8f8b;
+}
+
+.backend-loading-signals span:nth-child(3) svg {
+  color: #e7984a;
+}
+
+@keyframes backend-loading-lift {
+  50% {
+    transform: translateY(-5px) rotate(-2deg);
+  }
+}
+
+@keyframes backend-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes backend-loading-blink {
+  50% {
+    opacity: 0.25;
+    transform: scale(0.7);
+  }
+}
+
+@media (max-width: 560px) {
+  .backend-loading {
+    padding: 16px;
+  }
+
+  .backend-loading-panel {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 28px 22px;
+    text-align: center;
+  }
+
+  .backend-loading-brand {
+    margin: 0 auto;
+  }
+
+  .backend-loading-copy .eyebrow,
+  .backend-loading-copy h1,
+  .backend-loading-message {
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .backend-loading-signals {
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backend-loading-mark,
+  .backend-loading-line,
+  .backend-loading-spark {
+    animation: none;
+  }
+}
