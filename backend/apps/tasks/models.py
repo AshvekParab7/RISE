@@ -66,3 +66,29 @@ class StudySession(models.Model):
             raise ValidationError({'topic': 'Topic must belong to the selected subject.'})
         if self.subject_id and self.subject.semester.student_id != self.student_id:
             raise ValidationError({'subject': 'Subject must belong to the authenticated student.'})
+
+class PlannerEvent(models.Model):
+    class EventType(models.TextChoices):
+        STUDY = 'STUDY', 'Study'
+        PERSONAL = 'PERSONAL', 'Personal'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    student = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='planner_events')
+    subject = models.ForeignKey('academics.Subject', on_delete=models.SET_NULL, null=True, blank=True, related_name='planner_events')
+    title = models.CharField(max_length=220)
+    subtopics = models.TextField(blank=True)
+    start_at = models.DateTimeField()
+    duration_minutes = models.PositiveIntegerField(default=45)
+    color = models.CharField(max_length=20, default='#6D5EF5')
+    event_type = models.CharField(max_length=20, choices=EventType.choices, default=EventType.STUDY)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('start_at', 'title')
+
+    def clean(self):
+        if self.duration_minutes <= 0:
+            raise ValidationError({'duration_minutes': 'Duration must be positive.'})
+        if self.subject_id and self.subject.semester.student_id != self.student_id:
+            raise ValidationError({'subject': 'Subject must belong to the authenticated student.'})

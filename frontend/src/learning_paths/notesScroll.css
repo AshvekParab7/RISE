@@ -1,0 +1,5 @@
+.notes-overlay{overscroll-behavior:contain;touch-action:none}
+.notes-panel{overscroll-behavior:contain}
+.notes-body{height:calc(90vh - 90px);min-height:0;overflow:hidden}
+.notes-content,.notes-toc{min-height:0;overflow-y:auto;overscroll-behavior:contain;touch-action:auto;-webkit-overflow-scrolling:touch}
+.notes-panel>header{gap:14px}.notes-download{margin-left:auto;padding:8px 11px;border:1px solid #d9c5df;border-radius:6px;background:#f8effa;color:#765081;font:inherit;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}.notes-download:hover{background:#f1e3f4}

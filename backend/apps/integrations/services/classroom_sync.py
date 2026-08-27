@@ -1,7 +1,9 @@
 from datetime import datetime, time
 from django.db import transaction
+from django.core.files.base import ContentFile
 from django.utils import timezone
 from apps.academics.models import Semester, Subject
+from apps.ai.services.resource_processing import process_resource
 from apps.resources.models import Resource
 from apps.tasks.models import Task
 from .google_classroom import ClassroomApiError, GoogleClassroomService
@@ -56,9 +58,12 @@ class ClassroomSyncEngine:
 
     @transaction.atomic
     def sync(self):
-        summary = {'courses_found': 0, 'courses_created': 0, 'courses_updated': 0, 'tasks_created': 0, 'tasks_updated': 0, 'resources_created': 0, 'resources_updated': 0, 'errors': []}
+        summary = {'courses_found': 0, 'courses_created': 0, 'courses_updated': 0, 'tasks_created': 0, 'tasks_updated': 0, 'resources_created': 0, 'resources_updated': 0, 'resources_downloaded': 0, 'errors': []}
         courses = self.service.get_courses(); summary['courses_found'] = len(courses)
         semester = Semester.objects.filter(student=self.connection.user, is_current=True).first() or Semester.objects.filter(student=self.connection.user).first()
+        if not semester:
+            now = timezone.now()
+            semester = Semester.objects.create(student=self.connection.user, name='Google Classroom', year=now.year, semester_number=1, is_current=True)
         for course in courses:
             try:
                 course_id = course['id']
@@ -67,7 +72,6 @@ class ClassroomSyncEngine:
                     subject = Subject.objects.create(semester=semester, name=course.get('name', 'Google Classroom Course'), code=f'GC-{course_id[-6:]}', difficulty=Subject.Difficulty.MEDIUM, target_grade='')
                 record, created = GoogleCourse.objects.update_or_create(google_connection=self.connection, google_course_id=course_id, defaults={'name': course.get('name', ''), 'section': course.get('section', ''), 'description': course.get('description', ''), 'room': course.get('room', ''), 'course_state': course.get('courseState', ''), 'course_created_at': _parse_google_datetime(course.get('creationTime')), 'course_updated_at': _parse_google_datetime(course.get('updateTime')), 'rise_subject': subject, 'last_synced_at': timezone.now(), 'is_active': course.get('courseState', 'ACTIVE') != 'DELETED'})
                 summary['courses_created' if created else 'courses_updated'] += 1
-                for work in self.service.get_coursework(course_id): self._sync_work(record, work, summary)
                 for material in self.service.get_course_materials(course_id): self._sync_material(record, material, summary)
             except (KeyError, ClassroomApiError, Exception) as exc:
                 summary['errors'].append({'course_id': course.get('id'), 'message': 'Course sync failed.'})
@@ -92,6 +96,26 @@ class ClassroomSyncEngine:
 
     def _sync_material(self, course, item, summary):
         material_type, source_url, mime_type = _material_details(item); record, created = GoogleMaterial.objects.update_or_create(google_course=course, google_material_id=item['id'], defaults={'title': item.get('title', 'Classroom material'), 'material_type': material_type, 'alternate_link': item.get('alternateLink', ''), 'mime_type': mime_type, 'source_url': source_url, 'last_synced_at': timezone.now()})
-        resource, resource_created = Resource.objects.update_or_create(student=self.connection.user, title=item.get('title', 'Classroom material'), defaults={'subject': course.rise_subject, 'description': source_url, 'file': '', 'resource_type': material_type, 'source': Resource.Source.GOOGLE_CLASSROOM, 'is_ai_ready': False})
+        resource, resource_created = Resource.objects.get_or_create(student=self.connection.user, title=item.get('title', 'Classroom material'), defaults={'subject': course.rise_subject, 'description': source_url, 'resource_type': material_type, 'source': Resource.Source.GOOGLE_CLASSROOM, 'is_ai_ready': False})
+        resource.subject = course.rise_subject
+        resource.description = source_url
+        resource.resource_type = material_type
+        resource.source = Resource.Source.GOOGLE_CLASSROOM
+        resource.is_ai_ready = False
+        try:
+            download_material = getattr(self.service, 'download_material', None)
+            downloaded = download_material(item) if download_material else None
+        except ClassroomApiError as exc:
+            downloaded = None
+            summary['errors'].append({'material_id': item.get('id'), 'message': 'Material content could not be downloaded.'})
+        if downloaded:
+            resource.file.save(downloaded['filename'], ContentFile(downloaded['content']), save=False)
+            resource.processing_status = Resource.ProcessingStatus.PROCESSING
+            resource.processing_error = ''
+            resource.save()
+            process_resource(resource)
+            summary['resources_downloaded'] = summary.get('resources_downloaded', 0) + 1
+        else:
+            resource.save(update_fields=['subject', 'description', 'resource_type', 'source', 'is_ai_ready', 'updated_at'])
         if record.rise_resource_id != resource.id: record.rise_resource = resource; record.save(update_fields=['rise_resource', 'updated_at'])
         summary['resources_created' if resource_created else 'resources_updated'] += 1

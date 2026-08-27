@@ -1,0 +1,285 @@
+<!DOCTYPE html><html class="light" lang="en" style="width: 1280px; height: 1311px; overflow: hidden; position: relative;"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>RISE Study Coach</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Merriweather:wght@700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "on-primary-container": "#a19da8",
+                        "surface-container-low": "#eef5f4",
+                        "on-background": "#161d1d",
+                        "secondary": "#5e5d68",
+                        "tertiary": "#242115",
+                        "outline-variant": "#c9c5cb",
+                        "on-secondary-container": "#64636e",
+                        "secondary-fixed": "#e3e1ee",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed-dim": "#c7c5d1",
+                        "surface-container": "#e8efee",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#37353e",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed-dim": "#cdc6b4",
+                        "on-tertiary-fixed": "#1f1b10",
+                        "background": "#f4fbfa",
+                        "surface-bright": "#f4fbfa",
+                        "on-secondary-fixed": "#1a1b24",
+                        "on-primary-fixed": "#1c1a23",
+                        "on-tertiary-container": "#a59f8e",
+                        "surface-tint": "#605d67",
+                        "primary": "#212028",
+                        "tertiary-container": "#3a3629",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#e3e1ee",
+                        "on-surface-variant": "#48464b",
+                        "inverse-surface": "#2b3231",
+                        "surface-variant": "#dde4e3",
+                        "on-secondary-fixed-variant": "#464650",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#48454f",
+                        "on-tertiary-fixed-variant": "#4b4739",
+                        "outline": "#79767c",
+                        "inverse-on-surface": "#ebf2f1",
+                        "primary-fixed-dim": "#c9c4d0",
+                        "tertiary-fixed": "#eae2cf",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#dde4e3",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#d4dbda",
+                        "on-surface": "#161d1d",
+                        "surface-container-high": "#e3eae8",
+                        "primary-fixed": "#e5e0ec",
+                        "inverse-primary": "#c9c4d0",
+                        "surface": "#f4fbfa"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    spacing: {
+                        "gutter": "24px",
+                        "section-margin": "64px",
+                        "unit": "8px",
+                        "stack-gap": "16px",
+                        "container-padding": "32px"
+                    },
+                    fontFamily: {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Merriweather"],
+                        "label-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Merriweather"],
+                        "headline-md": ["Merriweather"],
+                        "headline-lg-mobile": ["Merriweather"]
+                    },
+                    fontSize: {
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.3", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "1.2", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "1.2", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "1.4", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "1.3", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom Claymorphic Utility Classes to supplement Tailwind */
+        .clay-outer {
+            box-shadow: 12px 12px 24px #A8B2B1, -8px -8px 24px rgba(255, 255, 255, 0.9);
+        }
+        .clay-outer-sm {
+            box-shadow: 6px 6px 12px #A8B2B1, -4px -4px 12px rgba(255, 255, 255, 0.9);
+        }
+        .clay-inner {
+            box-shadow: inset 6px 6px 12px #A8B2B1, inset -4px -4px 12px rgba(255, 255, 255, 0.9);
+        }
+        .clay-button:active {
+            transform: translateY(2px);
+            box-shadow: inset 4px 4px 8px #A8B2B1, inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+        }
+    </style>
+<style>.clay-outer { box-shadow: -12px -12px 24px #A8B2B1, 8px 8px 24px rgba(255, 255, 255, 0.9) !important; } .clay-outer-sm { box-shadow: -6px -6px 12px #A8B2B1, 4px 4px 12px rgba(255, 255, 255, 0.9) !important; } .clay-inner { box-shadow: inset -6px -6px 12px #A8B2B1, inset 4px 4px 12px rgba(255, 255, 255, 0.9) !important; }</style></head>
+<body class="bg-background text-on-background font-body-md text-body-md h-screen w-full flex overflow-hidden selection:bg-primary-fixed selection:text-on-primary-fixed">
+<!-- SideNavBar (from JSON, mapped semantic intent: Study Coach is active) -->
+<nav class="hidden md:flex flex-col h-screen sticky left-0 top-0 p-container-padding bg-surface-container shadow-[-20px_0_40px_#A8B2B1] w-64 rounded-r-lg z-20">
+<!-- Header -->
+<div class="mb-section-margin flex flex-col items-center justify-center text-center">
+<div class="w-16 h-16 rounded-full clay-outer-sm bg-surface-container-lowest mb-stack-gap flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-3xl" style="font-variation-settings: 'FILL' 1;">psychology</span>
+</div>
+<h1 class="font-headline-md text-headline-md text-primary mb-stack-gap">RISE</h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Intelligent Study Engine</p>
+</div>
+<!-- Navigation Links -->
+<ul class="flex flex-col gap-unit flex-grow">
+<!-- Inactive: Dashboard -->
+<li class="">
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 hover:bg-surface-variant rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+</li>
+<!-- Inactive: Timetable -->
+<li class="">
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 hover:bg-surface-variant rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-label-md text-label-md">Timetable</span>
+</a>
+</li>
+<!-- Active: Study Coach -->
+<li class="">
+<a class="flex items-center gap-stack-gap bg-secondary-container text-primary font-bold rounded-full px-4 py-3 shadow-[-4px_-4px_10px_#A8B2B1] active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<span class="font-label-md text-label-md">Study Coach</span>
+</a>
+</li>
+<!-- Inactive: Analytics -->
+<li class="">
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 hover:bg-surface-variant rounded-full transition-all" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+</li>
+</ul>
+<!-- CTA -->
+<div class="mt-auto pt-section-margin">
+<button class="w-full flex items-center justify-center gap-unit bg-primary-container text-on-primary font-label-md text-label-md py-4 rounded-xl clay-outer clay-button transition-all">
+<span class="material-symbols-outlined text-lg">add</span>
+                New Study Session
+            </button>
+</div>
+</nav>
+<!-- Main Content Area: Chat Canvas -->
+<main class="flex-1 flex flex-col h-full bg-background relative z-10 overflow-hidden">
+<!-- Top Header for Chat -->
+<header class="w-full px-section-margin py-container-padding flex justify-between items-center z-10">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-background">Advanced Biology RAG</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-unit flex items-center gap-unit">
+<span class="w-2 h-2 rounded-full bg-primary-fixed-dim"></span> Session Active
+                </p>
+</div>
+<button class="w-12 h-12 rounded-full clay-outer-sm bg-surface-container flex items-center justify-center text-on-surface-variant clay-button transition-all">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</header>
+<!-- Chat History Scroll Area -->
+<div class="flex-1 overflow-y-auto px-section-margin pb-32 flex flex-col gap-container-padding">
+<!-- System/Time Divider -->
+<div class="flex justify-center w-full">
+<span class="font-label-sm text-label-sm text-on-surface-variant bg-surface-container-low px-4 py-2 rounded-full clay-inner">Today, 10:42 AM</span>
+</div>
+<!-- Coach Bubble (Claymorphic White) -->
+<div class="flex w-full justify-start max-w-4xl">
+<div class="flex flex-col gap-unit items-start max-w-[80%]">
+<div class="flex items-center gap-unit mb-1">
+<div class="w-8 h-8 rounded-full bg-surface-container clay-outer-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-primary">psychology</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">RISE Coach</span>
+</div>
+<div class="bg-surface-container-lowest text-on-background p-6 rounded-2xl rounded-tl-sm clay-outer">
+<p class="font-body-lg text-body-lg mb-4">
+                            Welcome back to your Biology module. We were discussing cellular respiration. Are you ready to review the electron transport chain, or do you have specific questions from the reading?
+                        </p>
+</div>
+</div>
+</div>
+<!-- User Bubble (Claymorphic Dark) -->
+<div class="flex w-full justify-end max-w-4xl self-end">
+<div class="flex flex-col gap-unit items-end max-w-[80%]">
+<div class="flex items-center gap-unit mb-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant">You</span>
+<div class="w-8 h-8 rounded-full bg-primary-container clay-outer-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-on-primary">person</span>
+</div>
+</div>
+<!-- Using on-surface-variant to approximate #44444E, with white text -->
+<div class="bg-on-surface-variant text-on-primary p-6 rounded-2xl rounded-tr-sm clay-outer">
+<p class="font-body-lg text-body-lg">
+                            Can you explain the role of ATP synthase again? I'm still a bit confused about how the proton gradient actually powers it.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Coach Bubble with Citations -->
+<div class="flex w-full justify-start max-w-4xl">
+<div class="flex flex-col gap-unit items-start max-w-[80%]">
+<div class="flex items-center gap-unit mb-1">
+<div class="w-8 h-8 rounded-full bg-surface-container clay-outer-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-sm text-primary">psychology</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">RISE Coach</span>
+</div>
+<div class="bg-surface-container-lowest text-on-background p-6 rounded-2xl rounded-tl-sm clay-outer flex flex-col gap-4">
+<p class="font-body-lg text-body-lg">
+                            Absolutely. Think of ATP synthase as a microscopic, molecular turbine embedded in the inner mitochondrial membrane. 
+                        </p>
+<p class="font-body-lg text-body-lg">
+                            The proton gradient means there are many more protons ($H^+$ ions) outside the membrane than inside. Because nature seeks balance, these protons desperately want to flow back across the membrane. The only way through is a channel within the ATP synthase enzyme.
+                        </p>
+<p class="font-body-lg text-body-lg">
+                            As protons rush through this channel, their physical movement causes the base of the enzyme to physically spin. This mechanical rotation provides the exact physical energy needed to jam a phosphate group onto an ADP molecule, creating ATP.
+                        </p>
+<!-- Citations Area -->
+<div class="mt-4 pt-4 border-t border-surface-variant flex flex-wrap gap-stack-gap items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Sources:</span>
+<!-- Citation Pill 1 (Using primary-container for #37353E vibe) -->
+<button class="flex items-center gap-unit bg-primary-container text-on-primary font-label-sm text-label-sm px-4 py-2 rounded-full clay-outer-sm hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[16px]">menu_book</span>
+                                Ch 4.2: Oxidative Phosphorylation
+                            </button>
+<!-- Citation Pill 2 (Using surface-tint for the secondary requested color vibe) -->
+<button class="flex items-center gap-unit bg-surface-tint text-on-primary font-label-sm text-label-sm px-4 py-2 rounded-full clay-outer-sm hover:scale-105 transition-transform">
+<span class="material-symbols-outlined text-[16px]">description</span>
+                                Prof. Miller's Lecture Notes
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Spacer to ensure scroll doesn't hide behind input -->
+<div class="h-12 w-full"></div>
+</div>
+<!-- Input Area (Carved/Recessed Clay) -->
+<div class="absolute bottom-0 left-0 w-full px-section-margin pb-section-margin pt-container-padding bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
+<div class="w-full max-w-4xl mx-auto flex items-end gap-gutter pointer-events-auto">
+<!-- Recessed Textarea Container -->
+<div class="flex-1 bg-surface-container-low rounded-xl clay-inner p-2 flex flex-col relative transition-all focus-within:bg-surface-container">
+<textarea class="w-full bg-transparent border-none outline-none resize-none font-body-md text-body-md text-on-background p-4 placeholder:text-on-surface-variant min-h-[60px] max-h-[200px] rounded-lg focus:ring-0" oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'" placeholder="Ask a question or request a summary..." rows="1"></textarea>
+<!-- Quick Actions within input -->
+<div class="flex justify-between items-center px-4 pb-2">
+<div class="flex gap-unit text-on-surface-variant">
+<button class="p-2 hover:bg-surface-variant rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">attach_file</span>
+</button>
+<button class="p-2 hover:bg-surface-variant rounded-full transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">mic</span>
+</button>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant opacity-50">Shift + Enter for new line</span>
+</div>
+</div>
+<!-- Send Button -->
+<button class="w-16 h-16 shrink-0 rounded-full bg-primary-container text-on-primary flex items-center justify-center clay-outer clay-button transition-all focus:outline-none mb-2">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">send</span>
+</button>
+</div>
+</div>
+</main>
+</body></html>

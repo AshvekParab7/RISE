@@ -8,7 +8,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework_simplejwt.views import TokenRefreshView
 from apps.academics.views import CollegeClassViewSet, ExamViewSet, SemesterViewSet, SubjectViewSet, SyllabusViewSet, TopicViewSet
 from apps.resources.views import ResourceViewSet
-from apps.tasks.views import StudySessionViewSet, TaskViewSet
+from apps.tasks.views import PlannerEventViewSet, StudySessionViewSet, TaskViewSet
 
 router = DefaultRouter()
 router.register('semesters', SemesterViewSet, basename='semester')
@@ -20,6 +20,7 @@ router.register('college-timetable', CollegeClassViewSet, basename='college-clas
 router.register('resources', ResourceViewSet, basename='resource')
 router.register('tasks', TaskViewSet, basename='task')
 router.register('study-sessions', StudySessionViewSet, basename='study-session')
+router.register('planner-events', PlannerEventViewSet, basename='planner-event')
 
 def health(_request):
     return JsonResponse({'status': 'ok'})
@@ -31,7 +32,8 @@ urlpatterns = [
     path('api/integrations/', include('apps.integrations.urls')),
     path('api/intelligence/', include('apps.intelligence.urls')),
     path('api/ai/', include('apps.ai.urls')),
-    path('api/smart-tutor/', include('apps.smart_tutor.urls')),
+    path('api/ashvek/study-coach/', include('apps.ashvek_study_coach.urls')),
+    path('api/learning/', include('apps.learning_paths.urls')),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('api/', include(router.urls)),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

@@ -8,6 +8,7 @@ from .models_classroom import GoogleCourse, GoogleCoursework, GoogleMaterial
 from .services.classroom_sync import ClassroomSyncEngine
 from .services.google_classroom import ClassroomApiError
 from .services.google_tokens import GoogleAuthenticationRequired
+from .services.google_classroom_gis import CLASSROOM_GIS_SCOPES, ClassroomTokenError, authorize_classroom_connection
 
 class ClassroomStatusView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
@@ -25,7 +26,10 @@ class ClassroomSyncView(APIView):
     def post(self, request):
         connection = GoogleConnection.objects.filter(user=request.user, is_active=True).first()
         if not connection:
-            return Response({'detail': 'Connect Google before syncing Classroom.'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Classroom access needs your permission. Connect Classroom to continue.'}, status=status.HTTP_403_FORBIDDEN)
+        missing_scopes = sorted(set(CLASSROOM_GIS_SCOPES) - set(connection.scopes or []))
+        if missing_scopes:
+            return Response({'detail': 'Additional Google Classroom permission is required to download materials.', 'missing_scopes': missing_scopes}, status=status.HTTP_403_FORBIDDEN)
         try:
             result = ClassroomSyncEngine(connection).sync()
             return Response(result)
@@ -35,3 +39,15 @@ class ClassroomSyncView(APIView):
             return Response({'detail': 'Google Classroom is unavailable right now.'}, status=exc.status if exc.status in (403, 404, 429) else status.HTTP_502_BAD_GATEWAY)
         except Exception:
             return Response({'detail': 'Classroom synchronization failed.'}, status=status.HTTP_502_BAD_GATEWAY)
+
+class ClassroomAuthorizeView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    @extend_schema(request=OpenApiTypes.OBJECT, responses=OpenApiTypes.OBJECT)
+    def post(self, request):
+        access_token = request.data.get('access_token')
+        try:
+            connection = authorize_classroom_connection(request.user, access_token)
+        except ClassroomTokenError as exc:
+            return Response({'detail': str(exc), 'missing_scopes': exc.missing_scopes}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'authorized': True, 'scopes': connection.scopes, 'expires_at': connection.token_expiry})

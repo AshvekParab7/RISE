@@ -1,4 +1,3 @@
-import json
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -36,10 +35,39 @@ def _firebase_app():
     return firebase_admin.initialize_app(credential, {'projectId': settings.FIREBASE_PROJECT_ID} if settings.FIREBASE_PROJECT_ID else None)
 
 
+def _admin_credentials_available():
+    service_account_path = settings.FIREBASE_SERVICE_ACCOUNT_JSON
+    if service_account_path:
+        credential_path = Path(service_account_path)
+        if not credential_path.is_absolute():
+            credential_path = Path(settings.BASE_DIR) / credential_path
+        if credential_path.is_file():
+            return True
+    return bool(
+        settings.FIREBASE_CLIENT_EMAIL
+        and settings.FIREBASE_PRIVATE_KEY
+    ) or bool(os.getenv('GOOGLE_APPLICATION_CREDENTIALS'))
+
+
 def verify_firebase_id_token(token):
     try:
-        from firebase_admin import auth
-        _firebase_app()
-        return auth.verify_id_token(token, check_revoked=True)
+        if _admin_credentials_available():
+            from firebase_admin import auth
+            app = _firebase_app()
+            return auth.verify_id_token(token, app=app, check_revoked=True)
+
+        if not settings.FIREBASE_PROJECT_ID:
+            raise ImproperlyConfigured('FIREBASE_PROJECT_ID is required to verify Firebase tokens.')
+
+        from google.auth.transport.requests import Request
+        from google.oauth2 import id_token as google_id_token
+
+        claims = google_id_token.verify_firebase_token(
+            token,
+            Request(),
+            audience=settings.FIREBASE_PROJECT_ID,
+        )
+        claims['uid'] = claims.get('uid') or claims.get('sub')
+        return claims
     except Exception as exc:
         raise FirebaseAuthError from exc

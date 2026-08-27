@@ -1,0 +1,317 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>RISE - Focus Insights</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Merriweather:wght@700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-container": "#a19da8",
+                        "surface-container-low": "#eef5f4",
+                        "on-background": "#161d1d",
+                        "secondary": "#5e5d68",
+                        "tertiary": "#242115",
+                        "outline-variant": "#c9c5cb",
+                        "on-secondary-container": "#64636e",
+                        "secondary-fixed": "#e3e1ee",
+                        "on-tertiary": "#ffffff",
+                        "secondary-fixed-dim": "#c7c5d1",
+                        "surface-container": "#e8efee",
+                        "error-container": "#ffdad6",
+                        "primary-container": "#37353e",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed-dim": "#cdc6b4",
+                        "on-tertiary-fixed": "#1f1b10",
+                        "background": "#f4fbfa",
+                        "surface-bright": "#f4fbfa",
+                        "on-secondary-fixed": "#1a1b24",
+                        "on-primary-fixed": "#1c1a23",
+                        "on-tertiary-container": "#a59f8e",
+                        "surface-tint": "#605d67",
+                        "primary": "#212028",
+                        "tertiary-container": "#3a3629",
+                        "on-secondary": "#ffffff",
+                        "secondary-container": "#e3e1ee",
+                        "on-surface-variant": "#48464b",
+                        "inverse-surface": "#2b3231",
+                        "surface-variant": "#dde4e3",
+                        "on-secondary-fixed-variant": "#464650",
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#48454f",
+                        "on-tertiary-fixed-variant": "#4b4739",
+                        "outline": "#79767c",
+                        "inverse-on-surface": "#ebf2f1",
+                        "primary-fixed-dim": "#c9c4d0",
+                        "tertiary-fixed": "#eae2cf",
+                        "error": "#ba1a1a",
+                        "surface-container-highest": "#dde4e3",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#d4dbda",
+                        "on-surface": "#161d1d",
+                        "surface-container-high": "#e3eae8",
+                        "primary-fixed": "#e5e0ec",
+                        "inverse-primary": "#c9c4d0",
+                        "surface": "#f4fbfa"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "section-margin": "64px",
+                        "unit": "8px",
+                        "stack-gap": "16px",
+                        "container-padding": "32px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "headline-lg": ["Merriweather"],
+                        "label-md": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "display-lg": ["Merriweather"],
+                        "headline-md": ["Merriweather"],
+                        "headline-lg-mobile": ["Merriweather"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "1.3", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "1.2", "letterSpacing": "0.01em", "fontWeight": "600" }],
+                        "label-sm": ["12px", { "lineHeight": "1.2", "fontWeight": "500" }],
+                        "body-lg": ["18px", { "lineHeight": "1.6", "fontWeight": "400" }],
+                        "display-lg": ["48px", { "lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "1.4", "fontWeight": "700" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "1.3", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .clay-card {
+            background-color: #D3DAD9;
+            box-shadow: 20px 20px 40px #A8B2B1, -10px -10px 30px rgba(255, 255, 255, 0.8), inset 2px 2px 5px rgba(255, 255, 255, 0.6), inset -2px -2px 5px rgba(0, 0, 0, 0.05);
+            border-radius: 2rem;
+        }
+        .clay-button {
+            background-color: #37353E;
+            box-shadow: 10px 10px 20px #A8B2B1, -5px -5px 15px rgba(255, 255, 255, 0.8), inset 0px 4px 6px rgba(255, 255, 255, 0.2);
+            transition: all 0.2s ease;
+        }
+        .clay-button:active {
+            transform: translateY(2px);
+            box-shadow: 5px 5px 10px #A8B2B1, -2px -2px 5px rgba(255, 255, 255, 0.8), inset 0px 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        .clay-inset {
+            background-color: #D3DAD9;
+            box-shadow: inset 5px 5px 10px #A8B2B1, inset -5px -5px 10px rgba(255, 255, 255, 0.8);
+            border-radius: 1rem;
+        }
+        .clay-pill-active {
+            background-color: #715A5A;
+            box-shadow: 5px 5px 15px #A8B2B1, -5px -5px 15px rgba(255, 255, 255, 0.8), inset 0px 2px 4px rgba(255, 255, 255, 0.2);
+        }
+        .clay-pill-inactive {
+            background-color: #D3DAD9;
+            box-shadow: 5px 5px 15px #A8B2B1, -5px -5px 15px rgba(255, 255, 255, 0.8);
+        }
+        .chart-bar {
+            background-color: #44444E;
+            box-shadow: 5px 5px 10px rgba(0,0,0,0.1), inset 2px 2px 5px rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col md:flex-row overflow-x-hidden">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-screen sticky left-0 top-0 p-container-padding bg-surface-container w-64 rounded-r-lg shadow-[20px_0_40px_#A8B2B1] inset-shadow-white-tl z-50">
+<div class="mb-stack-gap">
+<h1 class="font-headline-md text-headline-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">psychology</span>
+                RISE
+            </h1>
+<p class="font-label-sm text-label-sm text-on-surface-variant mt-1">Intelligent Study Engine</p>
+</div>
+<ul class="flex-1 space-y-2 mt-8">
+<li>
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 hover:bg-surface-variant rounded-full transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 hover:bg-surface-variant rounded-full transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+<span class="font-label-md text-label-md">Timetable</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack-gap text-on-surface-variant px-4 py-3 hover:bg-surface-variant rounded-full transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-label-md text-label-md">Study Coach</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-stack-gap bg-secondary-container text-primary font-bold rounded-full px-4 py-3 shadow-[4px_4px_10px_#A8B2B1] active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined" data-icon="analytics" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+</li>
+</ul>
+<button class="clay-button w-full py-4 rounded-full text-white font-label-md text-label-md flex justify-center items-center gap-2 mt-auto">
+<span class="material-symbols-outlined">add</span>
+            New Study Session
+        </button>
+</nav>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col min-h-screen">
+<!-- TopNavBar (Mobile) -->
+<header class="md:hidden flex justify-between items-center w-full sticky top-0 z-50 px-gutter bg-background shadow-[10px_10px_30px_#A8B2B1,-5px_-5px_15px_rgba(255,255,255,0.8)] w-full top-0 py-4">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">RISE</h1>
+<div class="flex gap-4">
+<button class="text-on-surface-variant pb-1 hover:scale-105 transition-transform duration-200 active:translate-y-0.5 active:shadow-sm transition-all">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-on-surface-variant pb-1 hover:scale-105 transition-transform duration-200 active:translate-y-0.5 active:shadow-sm transition-all">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<img alt="User profile avatar" class="w-8 h-8 rounded-full border border-outline-variant object-cover" data-alt="A small, circular avatar image of a young student in a modern, light-filled study environment. The lighting is soft and natural, fitting a high-focus academic aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWtmgrqB5mW78wM8qsjn6DeSDIzo5F4aoATZpG49wKEh-20ScFsSyhopmJS8Mv7bpq96AHWvhx-_gmTT5cBohs9gt_XmBe3i1gfJ-4SCFCESUUO36oEqBEQ4aG_NQZZYck-P-hAIbPMEcWACsVsNY1iCcgwNap1w0fvi1Zschjumhjr8aPgLrOPd7ZVk5KxPE_iMiQM3M12YKk0T1AgTwdhlhakdQw3lXXlBHOzYdW61oxOCmBedvJ">
+</div>
+</header>
+<!-- Canvas Area -->
+<div class="flex-1 p-gutter md:p-section-margin max-w-7xl mx-auto w-full">
+<!-- Header Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
+<div>
+<h2 class="font-display-lg text-display-lg text-primary-container mb-2">Focus Insights</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Your cognitive performance mapping for this week.</p>
+</div>
+<!-- Timeframe Chips -->
+<div class="flex gap-3">
+<button class="clay-pill-inactive px-6 py-2 rounded-full font-label-md text-label-md text-on-surface-variant transition-all hover:-translate-y-1">Day</button>
+<button class="clay-pill-active px-6 py-2 rounded-full font-label-md text-label-md text-white transition-all">Week</button>
+<button class="clay-pill-inactive px-6 py-2 rounded-full font-label-md text-label-md text-on-surface-variant transition-all hover:-translate-y-1">Month</button>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8">
+<!-- Stat Card: Study Streak (Spans 4) -->
+<div class="clay-card col-span-1 md:col-span-4 p-container-padding flex flex-col justify-between">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-12 h-12 rounded-full clay-inset flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">local_fire_department</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary-container">Study Streak</h3>
+</div>
+<div>
+<div class="flex items-baseline gap-2">
+<span class="font-display-lg text-display-lg text-[#37353E]">14</span>
+<span class="font-body-lg text-body-lg text-on-surface-variant">Days</span>
+</div>
+<p class="font-body-md text-body-md text-[#715A5A] mt-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">trending_up</span> +3 from last week
+                        </p>
+</div>
+</div>
+<!-- Stat Card: Focus Velocity (Spans 4) -->
+<div class="clay-card col-span-1 md:col-span-4 p-container-padding flex flex-col justify-between">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-12 h-12 rounded-full clay-inset flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">speed</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary-container">Focus Velocity</h3>
+</div>
+<div>
+<div class="flex items-baseline gap-2">
+<span class="font-display-lg text-display-lg text-[#37353E]">85</span>
+<span class="font-body-lg text-body-lg text-on-surface-variant">Score</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">Optimal flow state maintained.</p>
+</div>
+<!-- Small Gauge -->
+<div class="mt-4 clay-inset h-4 rounded-full overflow-hidden w-full relative">
+<div class="absolute top-0 left-0 h-full bg-[#715A5A] rounded-full w-[85%] shadow-[2px_0_5px_rgba(0,0,0,0.2)]"></div>
+</div>
+</div>
+<!-- Stat Card: Subject Mastery (Spans 4) -->
+<div class="clay-card col-span-1 md:col-span-4 p-container-padding flex flex-col justify-between">
+<div class="flex items-center gap-3 mb-6">
+<div class="w-12 h-12 rounded-full clay-inset flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">school</span>
+</div>
+<h3 class="font-headline-md text-headline-md text-primary-container">Top Mastery</h3>
+</div>
+<div>
+<span class="font-display-lg text-display-lg text-[#37353E]">Biology</span>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">Cellular Respiration module completed.</p>
+</div>
+</div>
+<!-- Main Chart: Focus Distribution (Spans 8) -->
+<div class="clay-card col-span-1 md:col-span-8 p-container-padding flex flex-col">
+<div class="flex justify-between items-center mb-8">
+<h3 class="font-headline-md text-headline-md text-primary-container">Deep Work Distribution</h3>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">more_horiz</span>
+</div>
+<div class="flex-1 clay-inset p-6 flex items-end gap-4 justify-between h-64">
+<!-- Simulated Bar Chart -->
+<div class="flex flex-col items-center gap-2 h-full justify-end w-full">
+<div class="w-full bg-[#44444E] rounded-t-lg chart-bar h-[40%]"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Mon</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end w-full">
+<div class="w-full bg-[#44444E] rounded-t-lg chart-bar h-[60%]"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Tue</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end w-full">
+<div class="w-full bg-[#37353E] rounded-t-lg chart-bar h-[85%] relative">
+<div class="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-[#715A5A] text-white font-label-sm px-2 py-1 rounded-md shadow-md">Peak</div>
+</div>
+<span class="font-label-sm text-label-sm text-primary-container font-bold">Wed</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end w-full">
+<div class="w-full bg-[#44444E] rounded-t-lg chart-bar h-[50%]"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Thu</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end w-full">
+<div class="w-full bg-[#44444E] rounded-t-lg chart-bar h-[70%]"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Fri</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end w-full">
+<div class="w-full bg-[#44444E] rounded-t-lg chart-bar h-[30%] opacity-50"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Sat</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end w-full">
+<div class="w-full bg-[#44444E] rounded-t-lg chart-bar h-[20%] opacity-50"></div>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Sun</span>
+</div>
+</div>
+</div>
+<!-- Heatmap: Productivity Blocks (Spans 4) -->
+<div class="clay-card col-span-1 md:col-span-4 p-container-padding flex flex-col">
+<h3 class="font-headline-md text-headline-md text-primary-container mb-6">Optimal Blocks</h3>
+<div class="grid grid-cols-3 gap-3 flex-1">
+<!-- Heatmap Tiles -->
+<div class="bg-[#D3DAD9] rounded-xl shadow-[inset_2px_2px_5px_rgba(255,255,255,0.8),inset_-2px_-2px_5px_rgba(0,0,0,0.1)] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-on-surface-variant">8AM</span></div>
+<div class="bg-[#44444E] rounded-xl shadow-[5px_5px_10px_#A8B2B1] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-white">9AM</span></div>
+<div class="bg-[#37353E] rounded-xl shadow-[5px_5px_10px_#A8B2B1] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-white">10AM</span></div>
+<div class="bg-[#D3DAD9] rounded-xl shadow-[inset_2px_2px_5px_rgba(255,255,255,0.8),inset_-2px_-2px_5px_rgba(0,0,0,0.1)] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-on-surface-variant">11AM</span></div>
+<div class="bg-[#D3DAD9] rounded-xl shadow-[inset_2px_2px_5px_rgba(255,255,255,0.8),inset_-2px_-2px_5px_rgba(0,0,0,0.1)] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-on-surface-variant">12PM</span></div>
+<div class="bg-[#44444E] rounded-xl shadow-[5px_5px_10px_#A8B2B1] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-white">1PM</span></div>
+<div class="bg-[#715A5A] rounded-xl shadow-[5px_5px_10px_#A8B2B1] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-white">2PM</span></div>
+<div class="bg-[#715A5A] rounded-xl shadow-[5px_5px_10px_#A8B2B1] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-white">3PM</span></div>
+<div class="bg-[#44444E] rounded-xl shadow-[5px_5px_10px_#A8B2B1] flex items-center justify-center p-2"><span class="font-label-sm text-label-sm text-white">4PM</span></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

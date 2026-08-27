@@ -2,7 +2,7 @@ const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000/api').re
 let refreshPromise = null
 
 export class ApiError extends Error {
-  constructor(status, message) { super(message); this.status = status }
+  constructor(status, message, data = null) { super(message); this.status = status; this.data = data }
 }
 
 const friendlyMessage = status => ({ 400: 'Please check the information you entered.', 401: 'Your session has expired. Please sign in again.', 403: 'You do not have permission to do that.', 404: 'That RISE record could not be found.', 409: 'This record already exists.', 429: 'RISE is busy right now. Please try again shortly.', 500: 'RISE had trouble processing that request.' }[status] || 'RISE could not complete that request.')
@@ -37,7 +37,7 @@ export async function request(path, options = {}, retried = false) {
   }
   if (!response.ok) {
     const data = await response.json().catch(() => null)
-    throw new ApiError(response.status, data?.detail || friendlyMessage(response.status))
+    throw new ApiError(response.status, data?.detail || friendlyMessage(response.status), data)
   }
   return response.status === 204 ? null : response.json()
 }

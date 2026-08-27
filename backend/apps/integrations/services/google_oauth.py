@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth'
 TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token'
-CLASSROOM_SCOPES = ('https://www.googleapis.com/auth/classroom.courses.readonly', 'https://www.googleapis.com/auth/classroom.coursework.me.readonly', 'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly')
+CLASSROOM_SCOPES = ('https://www.googleapis.com/auth/classroom.courses.readonly', 'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly', 'https://www.googleapis.com/auth/drive.readonly')
 CALENDAR_SCOPES = ('https://www.googleapis.com/auth/calendar.readonly',)
 
 

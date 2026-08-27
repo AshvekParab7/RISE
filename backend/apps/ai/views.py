@@ -6,26 +6,67 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from apps.academics.models import Subject, Topic
 from apps.resources.models import Resource
-from .models import GeneratedQuestion, GeneratedTest, TestSubmission
-from .serializers import PlannerRequestSerializer, TestGenerateSerializer, TestSubmissionSerializer
+from .models import GeneratedQuestion, GeneratedTest, TestSubmission, TutorConversation
+from .serializers import TestGenerateSerializer, TestSubmissionSerializer, TutorConversationSerializer, TutorRequestSerializer
 from .services.llm import AIUnavailable, AIProviderError
-from .services.planner import planner_turn
+from .services.tutor import pdf_tutor_answer, public_tutor_answer, tutor_answer
 from .services.assessment_service import generate_assessment
 from .services.mastery_engine import apply_assessment_results
 from apps.intelligence.services.recommendation_engine import build_context, build_daily_plan, build_next_action
+from apps.integrations.models_calendar import GoogleCalendarEvent
+from apps.tasks.models import PlannerEvent
+from .serializers import PlannerRequestSerializer
+from .services.planner import planner_turn
 
 class PlannerView(APIView):
-    permission_classes = (permissions.AllowAny,)
+    permission_classes = (permissions.IsAuthenticated,)
 
     @extend_schema(request=PlannerRequestSerializer, responses=OpenApiTypes.OBJECT)
     def post(self, request):
         serializer = PlannerRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        planner_events = PlannerEvent.objects.filter(student=request.user).values(
+            'title', 'subtopics', 'start_at', 'duration_minutes', 'event_type'
+        )
+        imported_events = GoogleCalendarEvent.objects.filter(
+            google_calendar__google_connection__user=request.user, is_active=True
+        ).values('summary', 'start_datetime', 'end_datetime', 'all_day')
+        calendar = [
+            {'title': item['title'], 'subtopic': item['subtopics'], 'start': item['start_at'].isoformat(), 'duration': item['duration_minutes'], 'source': 'RISE'}
+            for item in planner_events
+        ] + [
+            {'title': item['summary'], 'start': item['start_datetime'].isoformat() if item['start_datetime'] else None, 'end': item['end_datetime'].isoformat() if item['end_datetime'] else None, 'all_day': item['all_day'], 'source': 'GOOGLE_CALENDAR'}
+            for item in imported_events
+        ]
+        context = build_context(request.user)
+        progress = {'next_action': build_next_action(context), 'daily_plan': build_daily_plan(context)}
         try:
-            return Response(planner_turn(data['message'], data['history'], data['calendar'], data['progress']))
+            return Response(planner_turn(data['message'], data['history'], calendar, progress))
         except (AIUnavailable, AIProviderError):
             return Response({'detail': 'RISE Planner is temporarily unavailable. Please try again shortly.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class TutorView(APIView):
+    permission_classes = (permissions.AllowAny,)
+    @extend_schema(request=TutorRequestSerializer, responses=OpenApiTypes.OBJECT)
+    def post(self, request):
+        serializer = TutorRequestSerializer(data=request.data); serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data; conversation = None
+        if data.get('file'):
+            try: return Response(pdf_tutor_answer(data['message'], data['file']))
+            except ValueError as exc: return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            except (AIUnavailable, AIProviderError): return Response({'answer': 'RISE Tutor is temporarily unavailable.', 'sources': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        if not request.user.is_authenticated:
+            try: return Response(public_tutor_answer(data['message']))
+            except (AIUnavailable, AIProviderError): return Response({'answer': 'RISE Tutor is temporarily unavailable.', 'sources': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        if data.get('conversation_id'): conversation = get_object_or_404(TutorConversation, id=data['conversation_id'], student=request.user)
+        try: return Response(tutor_answer(request.user, data['message'], data.get('subject_id'), data.get('topic_id'), data.get('resource_ids'), conversation))
+        except Exception: return Response({'answer': 'RISE could not complete that tutor request right now.', 'sources': []}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+class ConversationListView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+    @extend_schema(responses=TutorConversationSerializer(many=True))
+    def get(self, request): return Response(TutorConversationSerializer(TutorConversation.objects.filter(student=request.user).prefetch_related('messages'), many=True).data)
 
 class TestGenerateView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
