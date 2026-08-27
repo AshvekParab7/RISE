@@ -34,6 +34,7 @@ urlpatterns = [
     path('api/ai/', include('apps.ai.urls')),
     path('api/ashvek/study-coach/', include('apps.ashvek_study_coach.urls')),
     path('api/learning/', include('apps.learning_paths.urls')),
+    path('api/adaptive-planner/', include('apps.adaptive_planner.urls')),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('api/', include(router.urls)),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

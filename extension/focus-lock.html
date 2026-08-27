@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RISE Focus Guard</title>
+    <link rel="stylesheet" href="focus-lock.css" />
+  </head>
+  <body>
+    <main class="lock-shell">
+      <section class="lock-panel" aria-labelledby="lock-title">
+        <div class="lock-mark">R</div>
+        <p class="eyebrow">RISE FOCUS GUARD</p>
+        <h1 id="lock-title">Stay with your focus session.</h1>
+        <p id="state-copy" class="state-copy">Checking your server-owned Focus state...</p>
+        <div id="session-meta" class="session-meta" hidden></div>
+        <div id="question-area" class="question-area" hidden></div>
+        <div id="actions" class="actions"></div>
+        <p id="notice" class="notice" role="status"></p>
+      </section>
+    </main>
+    <script src="focus-lock.js"></script>
+  </body>
+</html>

@@ -32,6 +32,8 @@ class PlannerRequestSerializer(serializers.Serializer):
     history = serializers.ListField(child=serializers.JSONField(), required=False, default=list)
     calendar = serializers.ListField(child=serializers.JSONField(), required=False, default=list)
     progress = serializers.JSONField(required=False, default=dict)
+    selected_day = serializers.DateField(required=False, allow_null=True)
+    conversation_id = serializers.UUIDField(required=False, allow_null=True)
 
 class TestGenerateSerializer(serializers.Serializer):
     subject_id = serializers.UUIDField()

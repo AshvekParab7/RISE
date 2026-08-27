@@ -1,5 +1,5 @@
 from datetime import datetime, time
-from django.db import transaction
+import logging
 from django.core.files.base import ContentFile
 from django.utils import timezone
 from apps.academics.models import Semester, Subject
@@ -8,6 +8,8 @@ from apps.resources.models import Resource
 from apps.tasks.models import Task
 from .google_classroom import ClassroomApiError, GoogleClassroomService
 from ..models_classroom import GoogleCourse, GoogleCoursework, GoogleMaterial, GoogleSubmission
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_google_datetime(value):
@@ -51,12 +53,20 @@ def _material_details(item):
         return Resource.ResourceType.OTHER, material['youTubeVideo'].get('alternateLink', ''), 'video/*'
     return Resource.ResourceType.OTHER, '', ''
 
+
+def _drive_attachments(item):
+    attachments = []
+    for material in item.get('materials', []):
+        drive_file = material.get('driveFile', {}).get('driveFile', {})
+        if drive_file.get('id'):
+            attachments.append(drive_file)
+    return attachments
+
 class ClassroomSyncEngine:
     def __init__(self, connection, service_class=GoogleClassroomService):
         self.connection = connection
         self.service = service_class(connection)
 
-    @transaction.atomic
     def sync(self):
         summary = {'courses_found': 0, 'courses_created': 0, 'courses_updated': 0, 'tasks_created': 0, 'tasks_updated': 0, 'resources_created': 0, 'resources_updated': 0, 'resources_downloaded': 0, 'errors': []}
         courses = self.service.get_courses(); summary['courses_found'] = len(courses)
@@ -95,27 +105,126 @@ class ClassroomSyncEngine:
             work.rise_task.status = Task.Status.COMPLETED; work.rise_task.save(update_fields=['status', 'completed_at', 'updated_at'])
 
     def _sync_material(self, course, item, summary):
-        material_type, source_url, mime_type = _material_details(item); record, created = GoogleMaterial.objects.update_or_create(google_course=course, google_material_id=item['id'], defaults={'title': item.get('title', 'Classroom material'), 'material_type': material_type, 'alternate_link': item.get('alternateLink', ''), 'mime_type': mime_type, 'source_url': source_url, 'last_synced_at': timezone.now()})
-        resource, resource_created = Resource.objects.get_or_create(student=self.connection.user, title=item.get('title', 'Classroom material'), defaults={'subject': course.rise_subject, 'description': source_url, 'resource_type': material_type, 'source': Resource.Source.GOOGLE_CLASSROOM, 'is_ai_ready': False})
-        resource.subject = course.rise_subject
-        resource.description = source_url
-        resource.resource_type = material_type
-        resource.source = Resource.Source.GOOGLE_CLASSROOM
-        resource.is_ai_ready = False
-        try:
-            download_material = getattr(self.service, 'download_material', None)
-            downloaded = download_material(item) if download_material else None
-        except ClassroomApiError as exc:
-            downloaded = None
-            summary['errors'].append({'material_id': item.get('id'), 'message': 'Material content could not be downloaded.'})
-        if downloaded:
-            resource.file.save(downloaded['filename'], ContentFile(downloaded['content']), save=False)
-            resource.processing_status = Resource.ProcessingStatus.PROCESSING
-            resource.processing_error = ''
-            resource.save()
-            process_resource(resource)
-            summary['resources_downloaded'] = summary.get('resources_downloaded', 0) + 1
-        else:
+        attachments = _drive_attachments(item)
+        logger.info('Classroom material material_id=%s title=%s attachments=%s', item.get('id'), item.get('title'), len(attachments))
+        for drive_file in attachments:
+            logger.info('Classroom attachment material_id=%s drive_file_id=%s name=%s mime_type=%s url=%s', item.get('id'), drive_file.get('id'), drive_file.get('title'), drive_file.get('mimeType'), drive_file.get('alternateLink'))
+        if not attachments:
+            material_type, source_url, mime_type = _material_details(item)
+            if not source_url:
+                return
+            record, created = GoogleMaterial.objects.update_or_create(
+                google_course=course,
+                google_material_id=item['id'],
+                defaults={
+                    'title': item.get('title', 'Classroom material'),
+                    'material_type': material_type,
+                    'drive_file_id': '',
+                    'alternate_link': item.get('alternateLink', ''),
+                    'mime_type': mime_type,
+                    'source_url': source_url,
+                    'last_synced_at': timezone.now(),
+                },
+            )
+            resource, resource_created = Resource.objects.get_or_create(
+                student=self.connection.user,
+                title=item.get('title', 'Classroom material'),
+                defaults={
+                    'subject': course.rise_subject,
+                    'description': source_url,
+                    'resource_type': material_type,
+                    'source': Resource.Source.GOOGLE_CLASSROOM,
+                    'is_ai_ready': False,
+                },
+            )
+            resource.subject = course.rise_subject
+            resource.description = source_url
+            resource.resource_type = material_type
+            resource.source = Resource.Source.GOOGLE_CLASSROOM
+            resource.is_ai_ready = False
             resource.save(update_fields=['subject', 'description', 'resource_type', 'source', 'is_ai_ready', 'updated_at'])
-        if record.rise_resource_id != resource.id: record.rise_resource = resource; record.save(update_fields=['rise_resource', 'updated_at'])
-        summary['resources_created' if resource_created else 'resources_updated'] += 1
+            if record.rise_resource_id != resource.id:
+                record.rise_resource = resource
+                record.save(update_fields=['rise_resource', 'updated_at'])
+            summary['resources_created' if resource_created else 'resources_updated'] += 1
+            return
+        legacy_record = GoogleMaterial.objects.filter(google_course=course, google_material_id=item['id']).first()
+        attachment_resource_ids = set()
+        for index, drive_file in enumerate(attachments):
+            drive_file_id = drive_file['id']
+            material_key = f"{item['id']}:{drive_file_id}"
+            material_type = _resource_type({'driveFile': {'driveFile': drive_file}})
+            source_url = drive_file.get('alternateLink', '')
+            defaults = {
+                'title': drive_file.get('title') or item.get('title', 'Classroom material'),
+                'material_type': material_type,
+                'drive_file_id': drive_file_id,
+                'alternate_link': item.get('alternateLink', ''),
+                'mime_type': drive_file.get('mimeType', ''),
+                'source_url': source_url,
+                'last_synced_at': timezone.now(),
+            }
+            record = GoogleMaterial.objects.filter(google_course=course, google_material_id=material_key).first()
+            created = record is None
+            if record is None and index == 0 and legacy_record is not None:
+                record = legacy_record
+                record.google_material_id = material_key
+                for field, value in defaults.items():
+                    setattr(record, field, value)
+                record.save()
+            elif record is None:
+                record = GoogleMaterial.objects.create(google_course=course, google_material_id=material_key, **defaults)
+            else:
+                for field, value in defaults.items():
+                    setattr(record, field, value)
+                record.save(update_fields=tuple(defaults) + ('updated_at',))
+            resource = record.rise_resource
+            resource_created = resource is None
+            if resource is None:
+                resource = Resource.objects.filter(
+                    student=self.connection.user,
+                    source=Resource.Source.GOOGLE_CLASSROOM,
+                    description=source_url,
+                ).first()
+            if resource is None:
+                resource = Resource.objects.create(
+                    student=self.connection.user,
+                    subject=course.rise_subject,
+                    title=defaults['title'],
+                    description=source_url,
+                    resource_type=material_type,
+                    source=Resource.Source.GOOGLE_CLASSROOM,
+                    is_ai_ready=False,
+                )
+            attachment_resource_ids.add(resource.id)
+            resource.subject = course.rise_subject
+            resource.title = defaults['title']
+            resource.description = source_url
+            resource.resource_type = material_type
+            resource.source = Resource.Source.GOOGLE_CLASSROOM
+            resource.is_ai_ready = False
+            try:
+                downloaded = self.service.download_material({'title': defaults['title'], 'materials': [{'driveFile': {'driveFile': drive_file}}]})
+            except ClassroomApiError:
+                downloaded = None
+                summary['errors'].append({'material_id': material_key, 'message': 'Material content could not be downloaded.'})
+            if downloaded:
+                resource.file.save(downloaded['filename'], ContentFile(downloaded['content']), save=False)
+                resource.processing_status = Resource.ProcessingStatus.PROCESSING
+                resource.processing_error = ''
+                resource.save()
+                process_resource(resource)
+                summary['resources_downloaded'] = summary.get('resources_downloaded', 0) + 1
+            else:
+                resource.save(update_fields=['subject', 'title', 'description', 'resource_type', 'source', 'is_ai_ready', 'updated_at'])
+            if record.rise_resource_id != resource.id:
+                record.rise_resource = resource
+                record.save(update_fields=['rise_resource', 'updated_at'])
+            summary['resources_created' if created and resource_created else 'resources_updated'] += 1
+        Resource.objects.filter(
+            student=self.connection.user,
+            subject=course.rise_subject,
+            source=Resource.Source.GOOGLE_CLASSROOM,
+            title=item.get('title', 'Classroom material'),
+            google_materials__isnull=True,
+        ).exclude(id__in=attachment_resource_ids).delete()

@@ -12,7 +12,7 @@ INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
     'corsheaders', 'rest_framework', 'rest_framework_simplejwt', 'drf_spectacular',
-    'apps.accounts', 'apps.academics', 'apps.resources', 'apps.tasks', 'apps.ashvek_study_coach', 'apps.learning_paths',
+    'apps.accounts', 'apps.academics', 'apps.resources', 'apps.tasks', 'apps.ashvek_study_coach', 'apps.learning_paths', 'apps.adaptive_planner',
 ]
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware', 'django.middleware.security.SecurityMiddleware',
@@ -59,6 +59,8 @@ GOOGLE_OAUTH_SCOPES = [scope for scope in os.getenv('GOOGLE_OAUTH_SCOPES', 'open
 GOOGLE_TOKEN_ENCRYPTION_KEY = os.getenv('GOOGLE_TOKEN_ENCRYPTION_KEY', '')
 GOOGLE_SUCCESS_REDIRECT_URI = os.getenv('GOOGLE_SUCCESS_REDIRECT_URI', f'{FRONTEND_URL}/integrations')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-3.6-flash')
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY', '')
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-5-mini')
 OPENAI_EMBEDDING_MODEL = os.getenv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small')

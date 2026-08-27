@@ -51,6 +51,7 @@ class GoogleMaterial(models.Model):
     google_material_id = models.CharField(max_length=255)
     title = models.CharField(max_length=255)
     material_type = models.CharField(max_length=40, blank=True)
+    drive_file_id = models.CharField(max_length=255, blank=True)
     alternate_link = models.URLField(blank=True)
     mime_type = models.CharField(max_length=160, blank=True)
     source_url = models.URLField(blank=True)

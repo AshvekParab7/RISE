@@ -4,8 +4,11 @@ from pathlib import Path
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload
+import logging
 from .google_tokens import GoogleAuthenticationRequired, credentials_for
 from apps.resources.models import MAX_FILE_SIZE
+
+logger = logging.getLogger(__name__)
 
 class ClassroomApiError(Exception):
     def __init__(self, status, message):
@@ -67,17 +70,20 @@ class GoogleClassroomService:
         drive_file = next((material.get('driveFile', {}).get('driveFile', {}) for material in materials if material.get('driveFile')), None)
         if not drive_file or not drive_file.get('id'):
             return None
+        return self.download_drive_file(drive_file['id'], drive_file.get('title') or item.get('title', 'Classroom material'), drive_file.get('mimeType', ''))
+
+    def download_drive_file(self, drive_file_id, name_hint='', mime_hint=''):
         drive = self._drive()
         try:
-            metadata = drive.files().get(fileId=drive_file['id'], fields='id,name,mimeType,size').execute()
-            mime_type = metadata.get('mimeType', drive_file.get('mimeType', ''))
-            name = metadata.get('name') or drive_file.get('title') or item.get('title', 'Classroom material')
+            metadata = drive.files().get(fileId=drive_file_id, fields='id,name,mimeType,size').execute()
+            mime_type = metadata.get('mimeType', mime_hint)
+            name = metadata.get('name') or name_hint or 'Classroom material'
             if mime_type.startswith('application/vnd.google-apps.'):
-                request = drive.files().export_media(fileId=drive_file['id'], mimeType='application/pdf')
+                request = drive.files().export_media(fileId=drive_file_id, mimeType='application/pdf')
                 filename = f'{Path(name).stem}.pdf'
                 mime_type = 'application/pdf'
             else:
-                request = drive.files().get_media(fileId=drive_file['id'])
+                request = drive.files().get_media(fileId=drive_file_id)
                 filename = name if Path(name).suffix else f'{name}.pdf' if mime_type == 'application/pdf' else name
             content = self._read_media(request)
         except HttpError as exc:
@@ -85,7 +91,7 @@ class GoogleClassroomService:
             raise ClassroomApiError(status, 'Google Classroom attachment could not be downloaded.') from exc
         if len(content) > MAX_FILE_SIZE:
             raise ClassroomApiError(413, 'Google Classroom attachment is too large.')
-        return {'filename': filename, 'content': content, 'mime_type': mime_type}
+        return {'filename': filename, 'content': content, 'mime_type': mime_type, 'size': metadata.get('size')}
 
     @staticmethod
     def _read_media(request):

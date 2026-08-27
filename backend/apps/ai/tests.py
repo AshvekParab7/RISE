@@ -6,7 +6,9 @@ from apps.academics.models import Semester, Subject
 from apps.resources.models import Resource
 from .models import ResourceChunk
 from .services.chunker import chunk_text
+from .services.planner import fallback_planner_turn
 from .services.rag import answer_from_notes, retrieve
+from .services.resource_processing import process_resource
 from .services.tutor import pdf_tutor_answer, tutor_answer
 
 class AiLayerTests(TestCase):
@@ -22,6 +24,15 @@ class AiLayerTests(TestCase):
         chunks = chunk_text('word ' * 1000, size=100, overlap=10)
         self.assertGreater(len(chunks), 5)
         self.assertTrue(all(len(chunk['text']) <= 100 for chunk in chunks))
+
+    @patch('apps.ai.services.resource_processing.embed_text', return_value=[1.0, 0.0])
+    @patch('apps.ai.services.resource_processing.extract_document', return_value='TCP congestion control prevents network overload.')
+    def test_uploaded_pdf_becomes_ready_and_searchable(self, _extract, _embed):
+        self.resource.file.save('cn-notes.pdf', SimpleUploadedFile('cn-notes.pdf', b'%PDF'), save=True)
+        processed = process_resource(self.resource)
+        self.assertEqual(processed.processing_status, Resource.ProcessingStatus.READY)
+        self.assertTrue(processed.is_ai_ready)
+        self.assertEqual(processed.chunks.count(), 1)
 
     @override_settings(OPENAI_API_KEY='')
     def test_tutor_gracefully_falls_back_without_key(self):
@@ -79,5 +90,60 @@ class AiLayerTests(TestCase):
         result = pdf_tutor_answer('Who won the football match?', SimpleUploadedFile('notes.pdf', b'%PDF', content_type='application/pdf'))
         self.assertFalse(result['related'])
         self.assertIn('outside the uploaded study material', result['answer'])
+
+
+class PlannerFallbackTests(TestCase):
+    def setUp(self):
+        self.context = {
+            'selected_day': '2026-08-26',
+            'subjects': [{'id': 'subject-cn', 'name': 'Computer Networks', 'code': 'CN'}],
+            'topics': [{'subject_id': 'subject-cn', 'name': 'Transport Layer', 'mastery_percentage': 25}],
+            'calendar': [{
+                'title': 'Computer Networks class',
+                'start_at': '2026-08-27T09:00:00+00:00',
+                'end_at': '2026-08-27T10:00:00+00:00',
+                'source': 'COLLEGE_CLASS',
+            }],
+            'exams': [{
+                'title': 'Computer Networks Final',
+                'subject_id': 'subject-cn',
+                'subject': 'Computer Networks',
+                'date': '2026-08-29',
+                'start_time': '09:00',
+                'end_time': '11:00',
+            }],
+            'tasks': [],
+            'resources': [{
+                'title': 'Transport Layer notes',
+                'subject_id': 'subject-cn',
+                'is_ai_ready': True,
+            }],
+            'counts': {'study_blocks': 1, 'exams': 1, 'resources': 1},
+        }
+
+    def test_fallback_asks_for_availability_after_day(self):
+        result = fallback_planner_turn(
+            'I want to study Computer Networks on Thursday',
+            [],
+            self.context,
+        )
+
+        self.assertEqual(result['question']['id'], 'availability')
+        self.assertIn('Are you free on Thu, Aug 27?', result['reply'])
+        self.assertFalse(result['ready'])
+
+    def test_fallback_uses_exam_and_resource_context_for_plan(self):
+        history = [{'role': 'user', 'content': 'I want to study Computer Networks on Thursday'}]
+        result = fallback_planner_turn(
+            'Afternoon (13:00-17:00)',
+            history,
+            self.context,
+        )
+
+        self.assertTrue(result['ready'])
+        self.assertEqual(result['plan'][0]['time'], '13:00')
+        self.assertEqual(result['plan'][0]['resource_titles'], ['Transport Layer notes'])
+        self.assertIn('Computer Networks Final', result['reply'])
+        self.assertIn('Transport Layer notes', result['reply'])
 
 from .adaptive_tests import AdaptiveAssessmentApiTests

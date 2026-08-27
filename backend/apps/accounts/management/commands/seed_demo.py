@@ -1,9 +1,13 @@
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 from django.core.files.base import ContentFile
+from django.core.files import File
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from apps.accounts.models import User
 from apps.academics.models import CollegeClass, Exam, Semester, Subject, Syllabus, Topic
+from apps.ai.models import ResourceChunk
+from apps.ai.services.resource_processing import process_resource
 from apps.resources.models import Resource
 from apps.tasks.models import StudySession, Task
 
@@ -31,11 +35,48 @@ class Command(BaseCommand):
         task_specs = [('CN Lab Report', 'CN', 2, Task.Priority.HIGH, Task.Source.GOOGLE_CLASSROOM), ('Normalization worksheet', 'DBMS', 45, Task.Priority.MEDIUM, Task.Source.MANUAL), ('Python Mini Project', 'PY', 240, Task.Priority.LOW, Task.Source.GOOGLE_CLASSROOM)]
         for title, code, minutes, priority, source in task_specs:
             Task.objects.update_or_create(student=user, title=title, defaults={'subject': subjects[code], 'deadline': timezone.make_aware(datetime(2026, 8, 19, 17)), 'estimated_minutes': minutes, 'priority': priority, 'source': source, 'status': Task.Status.TODO})
+        demo_resource_content = {
+            'CN Unit 1 Notes.pdf': 'Computer networks exchange data between hosts. The transport layer provides end-to-end communication, while congestion control regulates the sending rate to prevent overload, packet loss, and unstable queues.',
+            'Transport Layer Slides.pdf': 'Reliable transport uses sequencing, acknowledgements, and retransmission. Congestion control observes network conditions and adjusts the sender window so throughput remains useful without overwhelming the network.',
+            'DBMS Normalization Slides.pdf': 'Database normalization organizes related data to reduce redundancy and update anomalies. First normal form uses atomic values, second normal form removes partial dependency, and third normal form removes transitive dependency.',
+        }
         for title, code in [('CN Unit 1 Notes.pdf', 'CN'), ('Transport Layer Slides.pdf', 'CN'), ('DBMS Normalization Slides.pdf', 'DBMS')]:
             resource, created = Resource.objects.get_or_create(student=user, title=title, defaults={'subject': subjects[code], 'resource_type': Resource.ResourceType.NOTE, 'source': Resource.Source.USER_UPLOAD, 'description': 'Demo study resource'})
             if created: resource.file.save(title, ContentFile(b'RISE demo resource'), save=True)
+            ResourceChunk.objects.update_or_create(
+                resource=resource,
+                chunk_index=0,
+                defaults={
+                    'student': user,
+                    'subject': subjects[code],
+                    'text': demo_resource_content[title],
+                    'embedding': [],
+                },
+            )
+            resource.processing_status = Resource.ProcessingStatus.READY
+            resource.processing_error = ''
+            resource.processed_at = timezone.now()
+            resource.is_ai_ready = True
+            resource.save(update_fields=('processing_status', 'processing_error', 'processed_at', 'is_ai_ready', 'updated_at'))
+        test_pdf_path = Path(__file__).resolve().parents[5] / 'Test_pdf' / 'Unit 2 Question Answers.pdf'
+        if test_pdf_path.exists():
+            test_resource, created = Resource.objects.get_or_create(
+                student=user,
+                title=test_pdf_path.name,
+                defaults={
+                    'subject': subjects['CN'],
+                    'resource_type': Resource.ResourceType.DOCUMENT,
+                    'source': Resource.Source.USER_UPLOAD,
+                    'description': 'Local PDF upload test resource',
+                },
+            )
+            if created or not test_resource.file:
+                test_resource.subject = subjects['CN']
+                test_resource.file.save(test_pdf_path.name, File(test_pdf_path.open('rb')), save=True)
+                process_resource(test_resource)
         syllabus, created = Syllabus.objects.get_or_create(semester=semester, title='Semester 5 Syllabus')
         if created: syllabus.file.save('semester-5-syllabus.pdf', ContentFile(b'RISE demo syllabus'), save=True); syllabus.processing_status = Syllabus.ProcessingStatus.PROCESSED; syllabus.save()
         topic = subjects['CN'].topics.order_by('order').first()
-        StudySession.objects.get_or_create(student=user, subject=subjects['CN'], topic=topic, planned_minutes=45, defaults={'status': StudySession.Status.PLANNED})
+        if not StudySession.objects.filter(student=user, subject=subjects['CN'], topic=topic, planned_minutes=45).exists():
+            StudySession.objects.create(student=user, subject=subjects['CN'], topic=topic, planned_minutes=45, status=StudySession.Status.PLANNED)
         self.stdout.write(self.style.SUCCESS('Demo workspace seeded for student@rise.local / RiseDemo123!.'))

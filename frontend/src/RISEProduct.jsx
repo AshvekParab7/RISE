@@ -7,6 +7,7 @@ import {
   NavLink,
   Link,
   useNavigate,
+  useLocation,
   useParams,
 } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -58,6 +59,7 @@ import {
   Trophy,
   LoaderCircle,
   RotateCcw,
+  ShieldCheck,
 } from "lucide-react";
 import {
   mockAnalytics,
@@ -74,6 +76,7 @@ import {
   classroomService,
   plannerService,
 } from "./services/mockServices";
+import { authService } from "./services/authService";
 import { firebaseAuthService } from "./services/firebase";
 import {
   ConnectedFocus as ConnectedFocusPage,
@@ -87,10 +90,14 @@ import ConnectedTutorPage from "./ConnectedTutor";
 import AshvekStudyCoachPage from "./ashvek/pages/AshvekStudyCoachPage";
 import LearnFromYouTube from "./learning_paths/LearnFromYouTube";
 import PlannerPage from "./PlannerPage";
+import AdaptivePlannerPage from "./timttable/PlannerPage";
 import { ClayAnalytics, ClayDashboard, ClaySettings } from "./ClayPages";
-import ClayFocusPage from "./ClayFocus";
+import ClayFocusPage from "./focus/ClayFocus";
+import { focusSessionService } from "./focus/focusSessionService";
 import { useWorkspace, WorkspaceContext } from "./context/WorkspaceContext";
+import { exitFocusFullscreen, focusFullscreenSupported, requestFocusFullscreen } from "./services/focusFullscreen";
 import { useAuth } from "./context/auth";
+import { get, hasSession } from "./services/api";
 import "./interactionBridge";
 import "./sidebar.css";
 import "./avatar.css";
@@ -181,6 +188,196 @@ function Stat({ label, value, trend, icon: Icon, accent = "purple" }) {
   );
 }
 
+const asArray = (value) =>
+  Array.isArray(value) ? value : value?.results || [];
+const parseNotificationDate = (value) => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+const notificationDateLabel = (value) =>
+  value.toLocaleDateString([], { month: "short", day: "numeric" });
+const notificationTimeLabel = (value) =>
+  value.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+
+function buildNotifications({
+  tasks = [],
+  events = [],
+  exams = [],
+  sessions = [],
+  subjects = [],
+  streak = mockStudent.streak,
+}) {
+  const notifications = [];
+  const now = new Date();
+  const subjectNames = Object.fromEntries(
+    subjects.map((subject) => [
+      String(subject.id),
+      subject.name || subject.title || "Your subject",
+    ]),
+  );
+  const add = (type, text, tone, path) =>
+    notifications.push({
+      id: `${type}-${notifications.length}`,
+      type,
+      text,
+      tone,
+      path,
+    });
+
+  const upcomingExam = exams
+    .map((exam) => ({
+      exam,
+      date: parseNotificationDate(exam.exam_date || exam.date),
+    }))
+    .filter(({ date }) => date && date.toDateString() >= now.toDateString())
+    .sort((left, right) => left.date - right.date)[0];
+  if (upcomingExam) {
+    const days = Math.max(
+      0,
+      Math.ceil((upcomingExam.date - now) / (24 * 60 * 60 * 1000)),
+    );
+    const subject =
+      upcomingExam.exam.subject_name ||
+      subjectNames[String(upcomingExam.exam.subject)] ||
+      upcomingExam.exam.subject ||
+      "your subject";
+    add(
+      "EXAM",
+      `${subject} exam ${days ? `in ${days} days` : "is today"}.`,
+      days <= 2 ? "red" : "orange",
+      "/planner",
+    );
+  }
+
+  const nextBlock = events
+    .map((event) => ({ event, date: parseNotificationDate(event.start_at) }))
+    .filter(({ date }) => date && date >= now)
+    .sort((left, right) => left.date - right.date)[0];
+  if (nextBlock && nextBlock.date - now <= 24 * 60 * 60 * 1000) {
+    add(
+      "SESSION",
+      `${nextBlock.event.title || "Study block"} starts ${notificationDateLabel(nextBlock.date)} at ${notificationTimeLabel(nextBlock.date)}.`,
+      "green",
+      "/planner",
+    );
+  }
+
+  const upcomingTask = tasks
+    .filter(
+      (task) => task.status !== "completed" && task.status !== "COMPLETED",
+    )
+    .map((task) => ({
+      task,
+      date: parseNotificationDate(task.deadline || task.due),
+    }))
+    .filter(({ date }) => date)
+    .sort((left, right) => left.date - right.date)[0];
+  if (upcomingTask) {
+    const subject =
+      subjectNames[String(upcomingTask.task.subject)] ||
+      upcomingTask.task.subject ||
+      "Academic task";
+    const taskStatus =
+      upcomingTask.date < now
+        ? `overdue since ${notificationDateLabel(upcomingTask.date)}`
+        : `due ${notificationDateLabel(upcomingTask.date)}`;
+    add(
+      "DEADLINE",
+      `${upcomingTask.task.title} is ${taskStatus}${subject ? ` · ${subject}` : ""}.`,
+      "red",
+      "/tasks",
+    );
+  }
+
+  const activeSession = sessions.find((session) => session.status === "ACTIVE");
+  if (activeSession) {
+    add(
+      "SESSION",
+      "Your focus session is active. Keep the next few minutes distraction-free.",
+      "green",
+      "/focus",
+    );
+  }
+
+  const reviewSubject = subjects.find(
+    (subject) => (subject.mastery_percentage ?? subject.mastery ?? 100) < 60,
+  );
+  if (reviewSubject) {
+    add(
+      "REVIEW",
+      `Spaced repetition review is ready for ${reviewSubject.name}.`,
+      "purple",
+      "/planner",
+    );
+  }
+
+  const todayKey = now.toISOString().slice(0, 10);
+  const todayBlocks = events.filter(
+    (event) => event.start_at?.slice(0, 10) === todayKey,
+  );
+  if (!todayBlocks.length) {
+    add(
+      "STREAK",
+      `Your ${streak}-day streak is ready for a small study block today.`,
+      "orange",
+      "/planner",
+    );
+  }
+
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - 6);
+  const weekBlocks = events.filter((event) => {
+    const date = parseNotificationDate(event.start_at);
+    return date && date >= weekStart && date <= now;
+  }).length;
+  add(
+    "PROGRESS",
+    `This week: ${weekBlocks} study block${weekBlocks === 1 ? "" : "s"} on your timetable.`,
+    "green",
+    "/progress",
+  );
+
+  return notifications.slice(0, 6);
+}
+
+function FocusFullscreenGuard({ active, onFullscreenChange }) {
+  const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== "undefined" && Boolean(document.fullscreenElement));
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const nextValue = Boolean(document.fullscreenElement);
+      setIsFullscreen(nextValue);
+      onFullscreenChange(nextValue);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    onFullscreenChange(Boolean(document.fullscreenElement));
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [onFullscreenChange]);
+
+  useEffect(() => {
+    if (!active) return undefined;
+    const warnBeforeExit = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeExit);
+    return () => window.removeEventListener("beforeunload", warnBeforeExit);
+  }, [active]);
+
+  if (!active || !focusFullscreenSupported() || isFullscreen) return null;
+  return (
+    <div className="focus-fullscreen-gate" role="alertdialog" aria-modal="true" aria-labelledby="focus-fullscreen-title">
+      <section className="focus-fullscreen-card">
+        <div className="focus-lock-icon"><ShieldCheck size={20} /></div>
+        <span className="eyebrow">FULLSCREEN FOCUS MODE</span>
+        <h2 id="focus-fullscreen-title">Return to fullscreen to keep studying</h2>
+        <p>Your session is paused until the Focus view is fullscreen again.</p>
+        <button className="clay-action primary" onClick={requestFocusFullscreen}>Return to fullscreen</button>
+      </section>
+    </div>
+  );
+}
+
 function App() {
   const [subjects, setSubjects] = useState([...mockSubjects]);
   const [tasks, setTasks] = useState(mockTasks);
@@ -190,10 +387,55 @@ function App() {
     classroom: false,
     calendar: false,
   });
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: "CN Lab Report is due tomorrow", tone: "red" },
-    { id: 2, text: "New Classroom material added", tone: "purple" },
-  ]);
+  const [notifications, setNotifications] = useState(() =>
+    buildNotifications({
+      tasks: mockTasks,
+      events: mockEvents,
+      subjects: mockSubjects,
+    }),
+  );
+  useEffect(() => {
+    let mounted = true;
+    const refreshNotifications = async () => {
+      if (!hasSession()) {
+        setNotifications(
+          buildNotifications({
+            tasks,
+            events: mockEvents,
+            subjects,
+          }),
+        );
+        return;
+      }
+      const results = await Promise.allSettled([
+        get("/planner-events/"),
+        get("/exams/"),
+        get("/tasks/"),
+        get("/study-sessions/"),
+        get("/subjects/"),
+      ]);
+      if (!mounted) return;
+      const read = (result) =>
+        result.status === "fulfilled" ? asArray(result.value) : [];
+      setNotifications(
+        buildNotifications({
+          events: read(results[0]),
+          exams: read(results[1]),
+          tasks: read(results[2]),
+          sessions: read(results[3]),
+          subjects: read(results[4]),
+        }),
+      );
+    };
+    refreshNotifications();
+    const interval = window.setInterval(refreshNotifications, 60_000);
+    window.addEventListener("rise:planner-updated", refreshNotifications);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+      window.removeEventListener("rise:planner-updated", refreshNotifications);
+    };
+  }, [tasks, subjects]);
   const value = {
     subjects,
     setSubjects,
@@ -223,9 +465,15 @@ function App() {
 function Shell() {
   const [open, setOpen] = useState(false);
   const [focus, setFocus] = useState(false);
+  const [focusFullscreen, setFocusFullscreen] = useState(false);
+  const [focusStartRequested, setFocusStartRequested] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
   const { tasks, _subjects, _integrations, notifications } = useWorkspace();
+  const handleFocusNavigation = () => {
+    if (focus) requestFocusFullscreen();
+    setOpen(false);
+  };
   return (
     <div className="app-shell">
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
@@ -249,7 +497,7 @@ function Shell() {
               key={to}
               to={to}
               end={to === "/"}
-              onClick={() => setOpen(false)}
+              onClick={handleFocusNavigation}
             >
               <Icon size={17} />
               <span>{label}</span>
@@ -263,11 +511,11 @@ function Shell() {
         </nav>
         <div className="nav-section">
           <span>WORKSPACE</span>
-          <NavLink to="/integrations">
+          <NavLink to="/integrations" onClick={handleFocusNavigation}>
             <Plug size={17} />
             Integrations
           </NavLink>
-          <NavLink to="/settings">
+          <NavLink to="/settings" onClick={handleFocusNavigation}>
             <Settings size={17} />
             Settings
           </NavLink>
@@ -305,16 +553,33 @@ function Shell() {
                 onClick={() => setShowNotifications(!showNotifications)}
               >
                 <Bell size={18} />
-                <i />
+                {notifications.length > 0 && <i />}
               </button>
               {showNotifications && (
                 <div className="notification-pop">
-                  {notifications.map((note) => (
-                    <div key={note.id}>
-                      <span className={`signal ${note.tone}`}>●</span>
-                      {note.text}
-                    </div>
-                  ))}
+                  <div className="notification-pop-head">
+                    <b>Notifications</b>
+                    <span>{notifications.length}</span>
+                  </div>
+                  {notifications.length ? (
+                    notifications.map((note) => (
+                      <button
+                        key={note.id}
+                        onClick={() => {
+                          setShowNotifications(false);
+                          if (note.path) navigate(note.path);
+                        }}
+                      >
+                        <span className={`signal ${note.tone}`}>●</span>
+                        <span>
+                          <small>{note.type}</small>
+                          {note.text}
+                        </span>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="notification-empty">You are all caught up.</p>
+                  )}
                 </div>
               )}
             </div>
@@ -328,7 +593,9 @@ function Shell() {
               element={
                 <HomeDashboard
                   setFocus={() => {
-                    setFocus(true);
+                    requestFocusFullscreen();
+                    setFocusStartRequested(true);
+                    setFocus(false);
                     navigate("/focus");
                   }}
                 />
@@ -338,14 +605,25 @@ function Shell() {
             <Route path="/subjects/:id" element={<SubjectDetail />} />
             <Route path="/tasks" element={<ConnectedTasksPage />} />
             <Route path="/notes" element={<ConnectedNotesPage />} />
-            <Route path="/planner" element={<LegacyPlanner />} />
+            <Route path="/planner" element={<AdaptivePlannerPage />} />
             <Route
               path="/focus"
-              element={<ClayFocusPage active={focus} setActive={setFocus} />}
+              element={
+                <ClayFocusPage
+                  active={focus}
+                  setActive={setFocus}
+                  fullscreenActive={focusFullscreen}
+                  startRequested={focusStartRequested}
+                  clearStartRequest={() => setFocusStartRequested(false)}
+                />
+              }
             />
             <Route path="/knowledge-check" element={<KnowledgeCheck />} />
             <Route path="/tutor" element={<AshvekStudyCoachPage />} />
-            <Route path="/ashvek/study-coach" element={<AshvekStudyCoachPage />} />
+            <Route
+              path="/ashvek/study-coach"
+              element={<AshvekStudyCoachPage />}
+            />
             <Route path="/tutor-legacy" element={<ConnectedTutorPage />} />
             <Route path="/learn/youtube" element={<LearnFromYouTube />} />
             <Route path="/tests" element={<Tests />} />
@@ -356,9 +634,10 @@ function Shell() {
           </Routes>
         </div>
       </main>
+      <FocusFullscreenGuard active={focus} onFullscreenChange={setFocusFullscreen} />
       <nav className="mobile-tabbar" aria-label="Primary navigation">
         {navItems.slice(0, 4).map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} end={to === "/"}>
+          <NavLink key={to} to={to} end={to === "/"} onClick={handleFocusNavigation}>
             <Icon size={20} />
             <span>{label}</span>
           </NavLink>
@@ -1519,10 +1798,26 @@ function MockFocusLegacy({ active, setActive }) {
 }
 function KnowledgeCheck() {
   const { setMastery } = useWorkspace();
+  const location = useLocation();
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
-  const submit = () => {
-    setSubmitted(true);
+  const [error, setError] = useState("");
+  const submit = async () => {
+    setError("");
+    try {
+      if (location.state?.focusSessionId) {
+        await focusSessionService.complete(location.state.focusSessionId, {
+          score: 4,
+          total: 5,
+          source: "knowledge-check",
+        });
+      }
+      localStorage.removeItem("rise_local_focus_session");
+      setSubmitted(true);
+    } catch (reason) {
+      setError(reason.message);
+      return;
+    }
     setMastery((value) => ({ ...value, cn: 59 }));
   };
   return (
@@ -1532,6 +1827,7 @@ function KnowledgeCheck() {
         title="Knowledge check"
         description="Let’s make sure your focus became understanding."
       />
+      {error && <p className="api-error">{error}</p>}
       {!submitted ? (
         <div className="quiz panel knowledge-quiz">
           <div className="quiz-top">
@@ -2217,9 +2513,18 @@ function SettingsPage() {
 
 function Login() {
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const googleLogin = async () => {
     setError("");
+    if (window.location.hostname === "127.0.0.1") {
+      window.location.replace(
+        `http://localhost:${window.location.port}${window.location.pathname}${window.location.search}`,
+      );
+      return;
+    }
     setGoogleLoading(true);
     try {
       await firebaseAuthService.login();
@@ -2227,6 +2532,18 @@ function Login() {
     } catch (reason) {
       setError(reason.message);
       setGoogleLoading(false);
+    }
+  };
+  const passwordLogin = async (event) => {
+    event.preventDefault();
+    setError("");
+    setLoginLoading(true);
+    try {
+      await authService.login({ email, password });
+      window.location.assign("/");
+    } catch (reason) {
+      setError(reason.message);
+      setLoginLoading(false);
     }
   };
   return (
@@ -2249,6 +2566,20 @@ function Login() {
           <span>G</span>{" "}
           {googleLoading ? "Connecting..." : "Continue with Google"}
         </button>
+        <div className="auth-divider"><span>or use your RISE account</span></div>
+        <form className="auth-login-form" onSubmit={passwordLogin}>
+          <label>
+            Email
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" />
+          </label>
+          <label>
+            Password
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" />
+          </label>
+          <button className="button button-primary" type="submit" disabled={loginLoading}>
+            {loginLoading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
         {error && <p className="api-error">{error}</p>}
       </div>
       <p className="auth-tagline">Plan smarter. Focus deeper. Rise higher.</p>

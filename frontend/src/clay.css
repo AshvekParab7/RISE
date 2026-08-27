@@ -1441,8 +1441,54 @@ textarea {
 
 .clay-focus-heading {
   display: grid;
+  width: calc(100% - 380px);
   justify-items: center;
+  justify-self: start;
   text-align: center;
+}
+
+.clay-focus:has(.clay-focus-workspace.session-active) .clay-focus-heading {
+  width: min(600px, 100%);
+}
+
+.clay-focus > .api-error {
+  width: calc(100% - 380px);
+  justify-self: start;
+}
+
+.clay-focus:has(.clay-focus-workspace.session-active) > .api-error {
+  width: min(600px, 100%);
+}
+
+@media (max-width: 1000px) and (min-width: 721px) {
+  .clay-focus-heading {
+    width: calc(100% - 396px);
+  }
+
+  .clay-focus:has(.clay-focus-workspace.session-active) .clay-focus-heading {
+    width: min(600px, calc(100% - 348px));
+  }
+
+  .clay-focus > .api-error {
+    width: calc(100% - 396px);
+  }
+}
+
+@media (max-width: 720px) {
+  .clay-focus-heading {
+    width: calc(100% + 16px);
+    justify-self: start;
+  }
+
+  .clay-focus:has(.clay-focus-workspace.session-active) .clay-focus-heading {
+    width: calc(100% + 16px);
+  }
+
+  .clay-focus > .api-error {
+    width: calc(100% + 16px);
+    justify-self: start;
+  }
+
 }
 
 .clay-focus-heading .eyebrow {
@@ -1512,7 +1558,7 @@ textarea {
   justify-content: center;
   flex-wrap: wrap;
   gap: 9px;
-  margin-top: 45px;
+  margin-top: 64px;
 }
 
 .clay-focus-controls .clay-quit {
@@ -1522,11 +1568,26 @@ textarea {
 .clay-focus-status {
   justify-content: space-between;
   gap: 34px;
-  width: min(600px, 100%);
+  width: calc(100% - 380px);
+  justify-self: start;
   padding: 16px 20px;
   border-radius: 22px;
   background: rgba(232, 239, 238, 0.66);
   box-shadow: var(--clay-inset);
+}
+
+.clay-focus:has(.clay-focus-workspace.session-active) .clay-focus-status {
+  width: min(600px, 100%);
+}
+
+@media (max-width: 1000px) and (min-width: 721px) {
+  .clay-focus-status {
+    width: calc(100% - 396px);
+  }
+
+  .clay-focus:has(.clay-focus-workspace.session-active) .clay-focus-status {
+    width: min(600px, calc(100% - 348px));
+  }
 }
 
 .clay-focus-status > div:first-child,
@@ -1900,7 +1961,7 @@ textarea {
     align-items: flex-start;
     flex-direction: column;
     gap: 15px;
-    width: 100%;
+    width: calc(100% + 16px);
   }
 
   .focus-topic {

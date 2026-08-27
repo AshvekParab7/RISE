@@ -1,0 +1,153 @@
+:root {
+  color: #25262c;
+  background: #d8dfde;
+  font-family: "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.lock-shell {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 20% 20%, #eef4f1 0, #d8dfde 48%, #c6cfcd 100%);
+}
+
+.lock-panel {
+  width: min(560px, 100%);
+  padding: 42px;
+  border: 1px solid rgba(37, 38, 44, 0.08);
+  border-radius: 28px;
+  background: rgba(244, 250, 248, 0.88);
+  box-shadow: 18px 20px 40px rgba(74, 83, 81, 0.24), -10px -10px 24px rgba(255, 255, 255, 0.7);
+}
+
+.lock-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 28px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #37353e;
+  font: 700 22px Georgia, serif;
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #4f8b70;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  max-width: 420px;
+  margin-bottom: 12px;
+  font: 700 clamp(28px, 6vw, 48px) Georgia, serif;
+  line-height: 1.05;
+}
+
+h2 {
+  margin-bottom: 10px;
+  font: 700 22px Georgia, serif;
+}
+
+.state-copy,
+.question-area p,
+.notice {
+  color: #64636e;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.session-meta {
+  margin: 24px 0 14px;
+  color: #4f8b70;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.question-area {
+  margin-top: 24px;
+  padding: 20px;
+  border-radius: 18px;
+  background: #e7eeeb;
+  box-shadow: inset 4px 4px 8px rgba(119, 130, 129, 0.18), inset -4px -4px 8px rgba(255, 255, 255, 0.7);
+}
+
+.question-area form {
+  display: grid;
+  gap: 9px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.46);
+  color: #25262c;
+  font-size: 13px;
+}
+
+.option input {
+  accent-color: #4f8b70;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  color: #25262c;
+  background: #e7eeeb;
+  box-shadow: 7px 8px 16px rgba(115, 126, 125, 0.2), -5px -5px 12px rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.button.primary {
+  color: #fff;
+  background: #37353e;
+}
+
+.button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.notice {
+  min-height: 20px;
+  margin: 18px 0 0;
+}
+
+@media (max-width: 520px) {
+  .lock-panel {
+    padding: 28px 22px;
+  }
+}
