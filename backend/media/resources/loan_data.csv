@@ -1,0 +1,16 @@
+Age,Income,Credit_Score,Employment,Loan_Purchase
+Young,Low,Poor,No,No
+Young,Low,Average,Yes,No
+Middle,Medium,Good,Yes,Yes
+Senior,High,Good,Yes,Yes
+Senior,Medium,Average,Yes,Yes
+Middle,High,Good,No,Yes
+Young,Medium,Average,Yes,Yes
+Senior,Low,Poor,No,No
+Young,Medium,Good,Yes,Yes
+Middle,Low,Average,No,No
+Senior,High,Average,Yes,Yes
+Middle,Medium,Poor,No,No
+Young,High,Good,Yes,Yes
+Senior,Medium,Good,Yes,Yes
+Middle,Low,Poor,No,No

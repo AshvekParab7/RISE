@@ -392,10 +392,25 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
 
   const requestSmartBreak = async () => {
     if (!session) return;
+    setError("");
     setSmartBreakOpen(true);
     setSmartBreakLoading(true);
     setSmartBreakResult(null);
     setSmartBreakAnswer("");
+    if (session.local_test) {
+      setSmartBreakQuestion({
+        question: "Which idea from the selected notes should you explain without looking back?",
+        options: [
+          "The sigmoid function predicts binary outcomes",
+          "File compression reduces every file to zero bytes",
+          "Authentication removes the need for passwords",
+          "A database index replaces all queries",
+        ],
+        correct_answer: "The sigmoid function predicts binary outcomes",
+      });
+      setSmartBreakLoading(false);
+      return;
+    }
     try {
       const response = await focusSessionService.smartBreakQuestion(session.id);
       setSmartBreakQuestion(response.question);
@@ -471,6 +486,23 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
     if (!session || !smartBreakAnswer) return;
     setSmartBreakLoading(true);
     try {
+      if (session.local_test) {
+        const correct = smartBreakAnswer === smartBreakQuestion?.correct_answer;
+        setSmartBreakResult(correct ? "correct" : "incorrect");
+        if (correct) {
+          const breakUnlockExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+          setSession((current) => ({
+            ...current,
+            focus_state: "PAUSED_BREAK",
+            break_unlock_expires_at: breakUnlockExpiresAt,
+          }));
+          setBreakSeconds(600);
+        } else {
+          setSmartBreakQuestion(null);
+          setSmartBreakAnswer("");
+        }
+        return;
+      }
       const response = await focusSessionService.smartBreakAnswer(session.id, smartBreakAnswer);
       setSmartBreakResult(response.correct ? "correct" : "incorrect");
       setSession((current) => ({
@@ -571,7 +603,11 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
                 )}
                 <button
                   className="clay-action primary"
-                  onClick={() => navigate("/knowledge-check")}
+                  onClick={() => {
+                    setActive(false);
+                    exitFocusFullscreen();
+                    navigate("/knowledge-check", { state: { focusSessionId: session.local_test ? null : session.id } });
+                  }}
                 >
                   <CheckCircle2 size={16} /> Finish session
                 </button>

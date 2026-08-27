@@ -88,6 +88,20 @@ class FocusSessionActionsMixin:
         ))
         return Response(StudySessionSerializer(session, context={'request': request}).data)
 
+    @action(detail=True, methods=['post'], url_path='focus/complete')
+    def focus_complete(self, request, pk=None):
+        session = self.get_object()
+        sync_focus_session(session)
+        if session.focus_state in (StudySession.FocusState.COMPLETED, StudySession.FocusState.ABANDONED):
+            return Response({'detail': 'This Focus session has already ended.'}, status=status.HTTP_409_CONFLICT)
+        session.focus_state = StudySession.FocusState.COMPLETED
+        session.status = StudySession.Status.COMPLETED
+        session.ended_at = timezone.now()
+        session.actual_minutes = max(session.actual_minutes, session.planned_minutes - ((session.remaining_seconds + 59) // 60))
+        session.completion_metadata = request.data if isinstance(request.data, dict) else {}
+        session.save(update_fields=('focus_state', 'status', 'ended_at', 'actual_minutes', 'completion_metadata'))
+        return Response(StudySessionSerializer(session, context={'request': request}).data)
+
     @action(detail=True, methods=['post'], url_path='focus/study-guide')
     def focus_study_guide(self, request, pk=None):
         session = self.get_object()

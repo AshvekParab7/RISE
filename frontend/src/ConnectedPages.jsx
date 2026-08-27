@@ -4,6 +4,7 @@ import {
   Check,
   ChevronRight,
   CircleCheck,
+  Download,
   FileText,
   Filter,
   Pencil,
@@ -22,6 +23,8 @@ import { resourceService } from "./services/resourceService";
 import { syllabusService } from "./services/syllabusService";
 import { studySessionService } from "./services/studySessionService";
 import { api, get, hasSession } from "./services/api";
+import PdfViewer from "./PdfViewer";
+import "./resourceViewer.css";
 
 const Button = ({
   children,
@@ -84,13 +87,122 @@ const mapTask = (task, subjects) => ({
     subjects.find((item) => item.id === task.subject)?.name || task.subject,
 });
 const openResource = (note) => {
-  if (!note.file) return;
-  const origin = new URL(api.url).origin;
-  const url = /^https?:\/\//i.test(note.file)
-    ? note.file
-    : new URL(note.file, `${origin}/`).toString();
-  window.open(url, "_blank", "noopener,noreferrer");
+  const url = resourceUrl(note);
+  if (!url) return;
+  window.location.assign(url);
 };
+const resourceUrl = (note) => {
+  const resourceLink = note.file || note.description;
+  if (!resourceLink) return "";
+  const origin = new URL(api.url).origin;
+  return /^https?:\/\//i.test(resourceLink)
+    ? resourceLink
+    : new URL(resourceLink, `${origin}/`).toString();
+};
+const isGoogleResource = (note) => /(?:drive\.google\.com|docs\.google\.com|classroom\.google\.com)/i.test(resourceUrl(note));
+const downloadResource = async (note) => {
+  if (!note.file && isGoogleResource(note) && note.id) {
+    try {
+      const blob = await resourceService.preview(note.id);
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = note.title || "resource";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+      return;
+    } catch {
+      // Fall through to the original Classroom link when Drive access is unavailable.
+    }
+  }
+  const url = resourceUrl(note);
+  if (!url) return;
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = note.title || "resource";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+};
+const resourceMeta = (item) => {
+  if (item.file_size) return `${item.file_size} bytes`;
+  if (item.file) return "Ready to open";
+  if (item.source === "GOOGLE_CLASSROOM" && item.description) return "Open online";
+  return "File unavailable";
+};
+
+function ResourceViewer({ resource, onClose }) {
+  const [previewFile, setPreviewFile] = useState(null);
+  const [previewError, setPreviewError] = useState("");
+  const url = resourceUrl(resource);
+  const googleUrl = isGoogleResource(resource);
+  const isPdf = /\.pdf(?:$|[?#])/i.test(url) || /\.pdf$/i.test(resource.title || "");
+  const closeViewer = () => onClose();
+
+  useEffect(() => {
+    if (!url || (!googleUrl && !isPdf)) return undefined;
+    let cancelled = false;
+    setPreviewFile(null);
+    setPreviewError("");
+    const fileRequest = googleUrl && resource.id
+      ? resourceService.preview(resource.id)
+      : fetch(url).then((response) => {
+        if (!response.ok) throw new Error("Resource request failed.");
+        return response.blob();
+      });
+    fileRequest
+      .then((blob) => {
+        if (cancelled) return;
+        if (blob.type === "application/pdf" || isPdf) {
+          setPreviewFile(new File([blob], resource.title || "resource.pdf", { type: "application/pdf" }));
+        } else {
+          setPreviewError("This file type cannot be previewed inside RISE.");
+        }
+      })
+      .catch(() => !cancelled && setPreviewError("This resource could not be fetched for preview."));
+    return () => { cancelled = true; };
+  }, [googleUrl, isPdf, resource.id, resource.title, url]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => event.key === "Escape" && onClose();
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className="resource-viewer-overlay" role="presentation" onClick={onClose}>
+      <section className="resource-viewer" role="dialog" aria-modal="true" aria-labelledby="resource-viewer-title" onClick={(event) => event.stopPropagation()}>
+        <header className="resource-viewer-header">
+          <div>
+            <span className="eyebrow">RESOURCE PREVIEW</span>
+            <h2 id="resource-viewer-title">{resource.title}</h2>
+          </div>
+          <button type="button" className="icon-button" onClick={closeViewer} aria-label="Close resource viewer" title="Close">
+            <X size={18} />
+          </button>
+        </header>
+        <div className="resource-viewer-body">
+          {previewFile ? (
+            <PdfViewer file={previewFile} />
+          ) : (
+            <div className="resource-viewer-fallback">
+              <FileText size={32} />
+              <h3>{previewError || (googleUrl || isPdf ? "Loading resource preview..." : "This file type cannot be previewed inside RISE.")}</h3>
+              <p>{googleUrl ? "Use the original Classroom or Drive file to view this resource." : `${resource.title} · ${resource.resource_type || "Document"}`}</p>
+              {googleUrl && url && <a className="button button-primary" href={url}>Open in Google Drive</a>}
+            </div>
+          )}
+        </div>
+        <footer className="resource-viewer-footer">
+          <button type="button" className="button" onClick={closeViewer}>Back to notes</button>
+          {googleUrl && <a className="button" href={url}>Open in Google Drive</a>}
+        </footer>
+      </section>
+    </div>
+  );
+}
 
 export function ConnectedSubjects() {
   const { subjects, setSubjects } = useWorkspace();
@@ -761,7 +873,7 @@ export function ConnectedNotesLegacy() {
               item.source === "GOOGLE_CLASSROOM"
                 ? "Google Classroom"
                 : "My notes",
-            meta: `${item.file_size || 0} bytes`,
+            meta: resourceMeta(item),
           })),
         ),
       )
@@ -870,6 +982,9 @@ export function ConnectedNotesLegacy() {
               </div>
               <span className="source">{note.source}</span>
               <Button>Open</Button>
+              <button className="icon-button" title="Download resource" aria-label={`Download ${note.title}`} onClick={() => downloadResource(note)} disabled={!note.file && !note.description}>
+                <Download size={16} />
+              </button>
               <button
                 className="icon-button danger"
                 onClick={() => remove(note)}
@@ -907,7 +1022,7 @@ export function ConnectedNotesSourceTabs() {
               item.source === "GOOGLE_CLASSROOM"
                 ? "Google Classroom"
                 : "My notes",
-            meta: `${item.file_size || 0} bytes`,
+            meta: resourceMeta(item),
           })),
         ),
       )
@@ -1045,6 +1160,9 @@ export function ConnectedNotesSourceTabs() {
                   {note.source}
                 </span>
                 <Button>Open</Button>
+                <button className="icon-button" title="Download resource" aria-label={`Download ${note.title}`} onClick={() => downloadResource(note)} disabled={!note.file && !note.description}>
+                  <Download size={16} />
+                </button>
                 {tab === "personal" && (
                   <button
                     className="icon-button danger"
@@ -1085,6 +1203,7 @@ export function ConnectedNotes() {
   const [subject, setSubject] = useState("");
   const [type, setType] = useState("NOTE");
   const [expanded, setExpanded] = useState({});
+  const [selectedResource, setSelectedResource] = useState(null);
   useEffect(() => {
     resourceService
       .list()
@@ -1101,7 +1220,7 @@ export function ConnectedNotes() {
               item.source === "GOOGLE_CLASSROOM"
                 ? "Google Classroom"
                 : "My notes",
-            meta: `${item.file_size || 0} bytes`,
+            meta: resourceMeta(item),
           })),
         ),
       )
@@ -1244,7 +1363,10 @@ export function ConnectedNotes() {
                         >
                           {note.source}
                         </span>
-                        <Button>Open</Button>
+                        <Button onClick={() => setSelectedResource(note)}>Open</Button>
+                        <button className="icon-button" title="Download resource" aria-label={`Download ${note.title}`} onClick={() => downloadResource(note)} disabled={!note.file && !note.description}>
+                          <Download size={16} />
+                        </button>
                         {note.source !== "Google Classroom" && (
                           <button
                             className="icon-button danger"
@@ -1261,6 +1383,9 @@ export function ConnectedNotes() {
             );
           })}
         </div>
+      )}
+      {selectedResource && (
+        <ResourceViewer resource={selectedResource} onClose={() => setSelectedResource(null)} />
       )}
     </>
   );

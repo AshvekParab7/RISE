@@ -25,14 +25,18 @@ class FakeSyncService:
 
 class FakeAttachmentSyncService(FakeSyncService):
     def get_course_materials(self, course_id):
-        return [{'id': 'material-attachment', 'title': 'Experiment 10', 'alternateLink': 'https://classroom.google.com/material-attachment', 'materials': [{'driveFile': {'driveFile': {'id': 'drive-file-1', 'title': 'Experiment 10', 'mimeType': 'application/pdf', 'alternateLink': 'https://drive.google.com/file/d/drive-file-1'}}}]}]
+        return [{'id': 'material-attachment', 'title': 'Unit 4', 'alternateLink': 'https://classroom.google.com/material-attachment', 'materials': [
+            {'driveFile': {'driveFile': {'id': 'drive-file-1', 'title': 'Experiment 10.docx', 'mimeType': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'alternateLink': 'https://drive.google.com/file/d/drive-file-1'}}},
+            {'driveFile': {'driveFile': {'id': 'drive-file-2', 'title': 'Unit 4 Slides.pptx', 'mimeType': 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'alternateLink': 'https://drive.google.com/file/d/drive-file-2'}}},
+        ]}]
 
     def download_material(self, item):
         output = BytesIO()
         writer = PdfWriter()
         writer.add_blank_page(width=612, height=792)
         writer.write(output)
-        return {'filename': 'Experiment 10.pdf', 'content': output.getvalue(), 'mime_type': 'application/pdf'}
+        drive_file = item['materials'][0]['driveFile']['driveFile']
+        return {'filename': f"{drive_file['title'].rsplit('.', 1)[0]}.pdf", 'content': output.getvalue(), 'mime_type': 'application/pdf'}
 
 class ClassroomSyncTests(TestCase):
     def setUp(self):
@@ -62,14 +66,21 @@ class ClassroomSyncTests(TestCase):
 
     def test_sync_downloads_and_processes_classroom_attachment(self):
         summary = ClassroomSyncEngine(self.connection, FakeAttachmentSyncService).sync()
-        resource = Resource.objects.get(source=Resource.Source.GOOGLE_CLASSROOM)
-        self.assertEqual(summary['resources_downloaded'], 1)
-        self.assertGreater(resource.file_size, 0)
-        self.assertTrue(resource.file.name.endswith('.pdf'))
-        self.assertEqual(resource.processing_status, Resource.ProcessingStatus.READY)
-        self.assertTrue(resource.is_ai_ready)
-        with resource.file.open('rb') as stored_file:
-            self.assertTrue(stored_file.read(5) == b'%PDF-')
+        resources = list(Resource.objects.filter(source=Resource.Source.GOOGLE_CLASSROOM).order_by('title'))
+        self.assertEqual(len(resources), 2)
+        self.assertEqual({resource.title for resource in resources}, {'Experiment 10.docx', 'Unit 4 Slides.pptx'})
+        materials = GoogleMaterial.objects.filter(google_course__google_connection=self.connection)
+        self.assertEqual(set(materials.values_list('drive_file_id', flat=True)), {'drive-file-1', 'drive-file-2'})
+        self.assertEqual(summary['resources_downloaded'], 2)
+        for resource in resources:
+            self.assertGreater(resource.file_size, 0)
+            self.assertEqual(resource.processing_status, Resource.ProcessingStatus.READY)
+            self.assertTrue(resource.is_ai_ready)
+            with resource.file.open('rb') as stored_file:
+                self.assertTrue(stored_file.read(5) == b'%PDF-')
+        ClassroomSyncEngine(self.connection, FakeAttachmentSyncService).sync()
+        self.assertEqual(Resource.objects.filter(source=Resource.Source.GOOGLE_CLASSROOM).count(), 2)
+        self.assertEqual(GoogleMaterial.objects.filter(google_course__google_connection=self.connection).count(), 2)
 
     @patch('apps.integrations.services.google_classroom.build')
     @patch('apps.integrations.services.google_classroom.credentials_for')

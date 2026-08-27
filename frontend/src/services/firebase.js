@@ -24,6 +24,7 @@ export const firebaseAuthService = {
       result = await signInWithPopup(firebaseAuth, googleProvider)
     } catch (error) {
       if (error?.code === 'auth/operation-not-allowed') throw new Error('Google Sign-In is disabled in Firebase Authentication. Enable the Google provider in Firebase Console.')
+      if (error?.code === 'auth/unauthorized-domain') throw new Error('This local address is not authorized for Google Sign-In. Open RISE at http://localhost:5173.')
       throw new Error('Google Sign-In could not be completed.')
     }
     const idToken = await result.user.getIdToken()

@@ -7,6 +7,7 @@ import {
   NavLink,
   Link,
   useNavigate,
+  useLocation,
   useParams,
 } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -92,8 +93,9 @@ import PlannerPage from "./PlannerPage";
 import AdaptivePlannerPage from "./timttable/PlannerPage";
 import { ClayAnalytics, ClayDashboard, ClaySettings } from "./ClayPages";
 import ClayFocusPage from "./focus/ClayFocus";
+import { focusSessionService } from "./focus/focusSessionService";
 import { useWorkspace, WorkspaceContext } from "./context/WorkspaceContext";
-import { focusFullscreenSupported, requestFocusFullscreen } from "./services/focusFullscreen";
+import { exitFocusFullscreen, focusFullscreenSupported, requestFocusFullscreen } from "./services/focusFullscreen";
 import { useAuth } from "./context/auth";
 import { get, hasSession } from "./services/api";
 import "./interactionBridge";
@@ -336,6 +338,44 @@ function buildNotifications({
   );
 
   return notifications.slice(0, 6);
+}
+
+function FocusFullscreenGuard({ active, onFullscreenChange }) {
+  const [isFullscreen, setIsFullscreen] = useState(() => typeof document !== "undefined" && Boolean(document.fullscreenElement));
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const nextValue = Boolean(document.fullscreenElement);
+      setIsFullscreen(nextValue);
+      onFullscreenChange(nextValue);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    onFullscreenChange(Boolean(document.fullscreenElement));
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, [onFullscreenChange]);
+
+  useEffect(() => {
+    if (!active) return undefined;
+    const warnBeforeExit = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeExit);
+    return () => window.removeEventListener("beforeunload", warnBeforeExit);
+  }, [active]);
+
+  if (!active || !focusFullscreenSupported() || isFullscreen) return null;
+  return (
+    <div className="focus-fullscreen-gate" role="alertdialog" aria-modal="true" aria-labelledby="focus-fullscreen-title">
+      <section className="focus-fullscreen-card">
+        <div className="focus-lock-icon"><ShieldCheck size={20} /></div>
+        <span className="eyebrow">FULLSCREEN FOCUS MODE</span>
+        <h2 id="focus-fullscreen-title">Return to fullscreen to keep studying</h2>
+        <p>Your session is paused until the Focus view is fullscreen again.</p>
+        <button className="clay-action primary" onClick={requestFocusFullscreen}>Return to fullscreen</button>
+      </section>
+    </div>
+  );
 }
 
 function App() {
@@ -1758,10 +1798,26 @@ function MockFocusLegacy({ active, setActive }) {
 }
 function KnowledgeCheck() {
   const { setMastery } = useWorkspace();
+  const location = useLocation();
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
-  const submit = () => {
-    setSubmitted(true);
+  const [error, setError] = useState("");
+  const submit = async () => {
+    setError("");
+    try {
+      if (location.state?.focusSessionId) {
+        await focusSessionService.complete(location.state.focusSessionId, {
+          score: 4,
+          total: 5,
+          source: "knowledge-check",
+        });
+      }
+      localStorage.removeItem("rise_local_focus_session");
+      setSubmitted(true);
+    } catch (reason) {
+      setError(reason.message);
+      return;
+    }
     setMastery((value) => ({ ...value, cn: 59 }));
   };
   return (
@@ -1771,6 +1827,7 @@ function KnowledgeCheck() {
         title="Knowledge check"
         description="Let’s make sure your focus became understanding."
       />
+      {error && <p className="api-error">{error}</p>}
       {!submitted ? (
         <div className="quiz panel knowledge-quiz">
           <div className="quiz-top">
@@ -2462,6 +2519,12 @@ function Login() {
   const [error, setError] = useState("");
   const googleLogin = async () => {
     setError("");
+    if (window.location.hostname === "127.0.0.1") {
+      window.location.replace(
+        `http://localhost:${window.location.port}${window.location.pathname}${window.location.search}`,
+      );
+      return;
+    }
     setGoogleLoading(true);
     try {
       await firebaseAuthService.login();

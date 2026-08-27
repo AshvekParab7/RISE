@@ -32,7 +32,6 @@ document.addEventListener('click', event => {
   const action = event.target.closest('.note-row .button')
   if (action) {
     const title = action.closest('.note-row')?.querySelector('b')?.textContent || 'this resource'
-    if (action.textContent.trim() === 'Open') window.alert(`${title}\n\nSource preview is ready for the connected document.`)
     if (action.textContent.trim() === 'AI') window.location.assign('/tutor')
   }
 }, true)

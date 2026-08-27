@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -7,8 +9,10 @@ from .models import GoogleConnection
 from .models_classroom import GoogleCourse, GoogleCoursework, GoogleMaterial
 from .services.classroom_sync import ClassroomSyncEngine
 from .services.google_classroom import ClassroomApiError
-from .services.google_tokens import GoogleAuthenticationRequired
+from .services.google_tokens import GoogleAuthenticationRequired, credentials_for
 from .services.google_classroom_gis import CLASSROOM_GIS_SCOPES, ClassroomTokenError, authorize_classroom_connection
+
+logger = logging.getLogger(__name__)
 
 class ClassroomStatusView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
@@ -27,6 +31,11 @@ class ClassroomSyncView(APIView):
         connection = GoogleConnection.objects.filter(user=request.user, is_active=True).first()
         if not connection:
             return Response({'detail': 'Classroom access needs your permission. Connect Classroom to continue.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            credentials_for(connection)
+        except GoogleAuthenticationRequired:
+            logger.info('Classroom synchronization requires reauthorization user_id=%s connection_id=%s', request.user.id, connection.id)
+            return Response({'detail': 'Google Classroom authorization has expired. Reconnect Google Classroom before syncing.'}, status=status.HTTP_403_FORBIDDEN)
         missing_scopes = sorted(set(CLASSROOM_GIS_SCOPES) - set(connection.scopes or []))
         if missing_scopes:
             return Response({'detail': 'Additional Google Classroom permission is required to download materials.', 'missing_scopes': missing_scopes}, status=status.HTTP_403_FORBIDDEN)
@@ -38,6 +47,7 @@ class ClassroomSyncView(APIView):
         except ClassroomApiError as exc:
             return Response({'detail': 'Google Classroom is unavailable right now.'}, status=exc.status if exc.status in (403, 404, 429) else status.HTTP_502_BAD_GATEWAY)
         except Exception:
+            logger.exception('Classroom synchronization failed user_id=%s connection_id=%s', request.user.id, connection.id)
             return Response({'detail': 'Classroom synchronization failed.'}, status=status.HTTP_502_BAD_GATEWAY)
 
 class ClassroomAuthorizeView(APIView):
