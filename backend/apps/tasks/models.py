@@ -49,15 +49,36 @@ class StudySession(models.Model):
         ACTIVE = 'ACTIVE', 'Active'
         COMPLETED = 'COMPLETED', 'Completed'
         ABANDONED = 'ABANDONED', 'Abandoned'
+
+    class FocusState(models.TextChoices):
+        READY = 'READY', 'Ready'
+        ACTIVE = 'ACTIVE', 'Active'
+        PAUSED_BREAK = 'PAUSED_BREAK', 'Paused for break'
+        PENALTY = 'PENALTY', 'Penalty'
+        COMPLETED_PENDING_QUIZ = 'COMPLETED_PENDING_QUIZ', 'Completed pending quiz'
+        COMPLETED = 'COMPLETED', 'Completed'
+        ABANDONED = 'ABANDONED', 'Abandoned'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name='study_sessions')
     subject = models.ForeignKey('academics.Subject', on_delete=models.CASCADE, related_name='study_sessions')
     topic = models.ForeignKey('academics.Topic', on_delete=models.CASCADE, related_name='study_sessions', null=True, blank=True)
+    selected_resources = models.ManyToManyField('resources.Resource', blank=True, related_name='focus_sessions')
+    smart_break_test = models.ForeignKey('ai.GeneratedTest', on_delete=models.SET_NULL, null=True, blank=True, related_name='focus_break_sessions')
     planned_minutes = models.PositiveIntegerField()
     actual_minutes = models.PositiveIntegerField(default=0)
+    remaining_seconds = models.PositiveIntegerField(default=45 * 60)
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    last_state_change_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
+    focus_state = models.CharField(max_length=32, choices=FocusState.choices, default=FocusState.READY)
+    break_unlock_expires_at = models.DateTimeField(null=True, blank=True)
+    penalty_seconds = models.PositiveIntegerField(default=0)
+    end_reason = models.CharField(max_length=120, blank=True)
+    score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    awarded_points = models.IntegerField(default=0)
+    completion_metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     def clean(self):
         if self.planned_minutes <= 0:

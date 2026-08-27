@@ -1,0 +1,488 @@
+.clay-focus-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  align-items: center;
+  gap: 48px;
+  width: calc(100% + 48px);
+  justify-self: start;
+  margin: 38px 0 42px;
+}
+
+.clay-focus-workspace.session-active {
+  grid-template-columns: 1fr;
+  width: min(600px, 100%);
+}
+
+.clay-focus-setup {
+  position: fixed;
+  z-index: 6;
+  top: 68px;
+  right: 0;
+  bottom: 0;
+  align-content: start;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  width: 380px;
+  overflow-y: auto;
+  padding: 30px 24px 42px;
+  border-radius: 24px 0 0 24px;
+  background: rgba(232, 239, 238, 0.74);
+  box-shadow: var(--clay-shadow-soft);
+}
+
+.clay-focus-setup-heading,
+.clay-focus-setup label,
+.clay-focus-setup fieldset {
+  display: grid;
+}
+
+.clay-focus-setup-heading {
+  grid-column: 1 / -1;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.clay-focus-setup-heading > svg {
+  color: var(--green);
+}
+
+.clay-study-guide {
+  gap: 18px;
+}
+
+.study-guide-loading {
+  padding: 14px;
+  border-radius: 14px;
+  color: var(--muted);
+  background: rgba(244, 251, 250, 0.58);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.study-guide-content {
+  display: grid;
+  gap: 18px;
+}
+
+.study-guide-intro {
+  display: grid;
+  gap: 6px;
+}
+
+.study-guide-intro > span,
+.study-guide-label {
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.study-guide-intro h2 {
+  font-size: 18px;
+}
+
+.study-guide-intro p,
+.study-guide-section li,
+.study-guide-steps p {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.study-guide-steps {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.study-guide-steps li {
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  gap: 9px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(129, 125, 139, 0.18);
+}
+
+.study-guide-steps li > span {
+  color: var(--green);
+  font-family: "Manrope", sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.study-guide-steps li > div {
+  display: grid;
+  gap: 3px;
+}
+
+.study-guide-steps strong {
+  font-size: 11px;
+}
+
+.study-guide-steps small {
+  color: var(--green);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.study-guide-section {
+  display: grid;
+  gap: 8px;
+}
+
+.study-guide-section ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 16px;
+}
+
+.study-guide-sources {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.focus-fullscreen-gate {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(33, 32, 40, 0.48);
+  backdrop-filter: blur(10px);
+}
+
+.focus-fullscreen-card {
+  display: grid;
+  gap: 14px;
+  width: min(420px, 100%);
+  padding: 28px;
+  border-radius: 24px;
+  background: var(--clay-raised);
+  box-shadow: var(--clay-shadow);
+}
+
+.focus-fullscreen-card h2,
+.focus-fullscreen-card p {
+  margin: 0;
+}
+
+.focus-fullscreen-card h2 {
+  font-size: 21px;
+}
+
+.focus-fullscreen-card p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.clay-focus-setup-heading strong,
+.clay-focus-setup-heading small,
+.clay-focus-setup label,
+.clay-focus-setup legend {
+  font-size: 11px;
+}
+
+.clay-focus-setup-heading small,
+.clay-focus-setup label,
+.focus-resource small,
+.focus-empty {
+  color: var(--muted);
+}
+
+.clay-focus-setup-heading small {
+  display: block;
+  margin-top: 4px;
+  font-size: 9px;
+}
+
+.clay-focus-setup label {
+  gap: 7px;
+  font-weight: 700;
+}
+
+.focus-select-wrap {
+  position: relative;
+  display: block;
+}
+
+.focus-select-wrap select {
+  width: 100%;
+  appearance: none;
+  padding-right: 34px;
+}
+
+.focus-select-wrap svg {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  pointer-events: none;
+  transform: translateY(-50%);
+  color: var(--muted);
+}
+
+.clay-focus-setup fieldset {
+  grid-column: 1 / -1;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.focus-resource-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-upload-button {
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px !important;
+  min-height: 30px;
+  padding: 0 11px;
+  border-radius: 999px;
+  color: var(--green) !important;
+  background: #e3efea;
+  box-shadow: var(--clay-shadow-soft);
+  font-size: 10px !important;
+  cursor: pointer;
+}
+
+.focus-upload-button:hover {
+  transform: translateY(-1px);
+}
+
+.focus-upload-status {
+  color: var(--green);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.clay-focus-setup legend {
+  padding: 0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.focus-resource-list {
+  display: grid;
+  gap: 8px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.focus-resource {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 10px !important;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(244, 251, 250, 0.56);
+}
+
+.focus-resource.is-pending {
+  opacity: 0.62;
+}
+
+.focus-resource input {
+  min-height: auto;
+  accent-color: var(--green);
+  box-shadow: none;
+}
+
+.focus-resource span {
+  display: grid;
+  gap: 3px;
+}
+
+.focus-resource strong {
+  font-family: "Manrope", sans-serif;
+  font-size: 11px;
+}
+
+.focus-resource small {
+  font-size: 9px;
+}
+
+.focus-empty {
+  font-size: 10px;
+}
+
+.clay-focus-start {
+  margin: 32px 0 38px;
+}
+
+.focus-break-action {
+  color: var(--ink);
+  background: #e3e1ee;
+}
+
+.focus-lock-overlay {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(33, 32, 40, 0.32);
+  backdrop-filter: blur(8px);
+}
+
+.focus-lock-dialog {
+  display: grid;
+  gap: 14px;
+  width: min(460px, 100%);
+  padding: 28px;
+  border-radius: 24px;
+  background: var(--clay-raised);
+  box-shadow: var(--clay-shadow);
+}
+
+.focus-lock-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: var(--ink);
+  box-shadow: var(--clay-shadow-soft);
+}
+
+.focus-lock-dialog h2,
+.focus-lock-dialog p {
+  margin: 0;
+}
+
+.focus-lock-dialog h2 {
+  font-size: 21px;
+}
+
+.focus-lock-dialog p,
+.focus-break-loading,
+.focus-break-result span,
+.focus-break-feedback {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.focus-break-loading,
+.focus-break-result {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  background: rgba(244, 251, 250, 0.55);
+}
+
+.focus-break-loading {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.focus-break-form {
+  display: grid;
+  gap: 14px;
+}
+
+.focus-break-form > strong {
+  font-family: "Manrope", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.focus-break-options {
+  display: grid;
+  gap: 8px;
+}
+
+.focus-break-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  color: var(--ink);
+  background: rgba(244, 251, 250, 0.58);
+  font-size: 11px;
+}
+
+.focus-break-option input {
+  min-height: auto;
+  accent-color: var(--green);
+  box-shadow: none;
+}
+
+.focus-break-feedback {
+  color: var(--red);
+}
+
+.focus-break-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.focus-break-result.success {
+  color: var(--green);
+}
+
+@media (max-width: 520px) {
+  .focus-lock-dialog {
+    padding: 22px;
+  }
+
+  .focus-break-actions {
+    justify-content: stretch;
+  }
+
+  .focus-break-actions .clay-action {
+    flex: 1;
+  }
+}
+
+@media (max-width: 1000px) and (min-width: 721px) {
+  .clay-focus-workspace.session-active {
+    width: min(600px, calc(100% - 348px));
+  }
+
+  .clay-focus-workspace {
+    width: calc(100% + 32px);
+  }
+}
+
+@media (max-width: 720px) {
+  .clay-focus-workspace,
+  .clay-focus-workspace.session-active {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    width: calc(100% + 16px);
+    justify-self: start;
+    margin: 28px 0 34px;
+  }
+
+  .clay-focus-setup {
+    position: static;
+    width: 100%;
+    min-height: 0;
+    overflow: visible;
+    border-radius: 24px;
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+}

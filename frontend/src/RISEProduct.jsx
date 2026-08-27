@@ -58,6 +58,7 @@ import {
   Trophy,
   LoaderCircle,
   RotateCcw,
+  ShieldCheck,
 } from "lucide-react";
 import {
   mockAnalytics,
@@ -74,6 +75,7 @@ import {
   classroomService,
   plannerService,
 } from "./services/mockServices";
+import { authService } from "./services/authService";
 import { firebaseAuthService } from "./services/firebase";
 import {
   ConnectedFocus as ConnectedFocusPage,
@@ -89,8 +91,9 @@ import LearnFromYouTube from "./learning_paths/LearnFromYouTube";
 import PlannerPage from "./PlannerPage";
 import AdaptivePlannerPage from "./timttable/PlannerPage";
 import { ClayAnalytics, ClayDashboard, ClaySettings } from "./ClayPages";
-import ClayFocusPage from "./ClayFocus";
+import ClayFocusPage from "./focus/ClayFocus";
 import { useWorkspace, WorkspaceContext } from "./context/WorkspaceContext";
+import { focusFullscreenSupported, requestFocusFullscreen } from "./services/focusFullscreen";
 import { useAuth } from "./context/auth";
 import { get, hasSession } from "./services/api";
 import "./interactionBridge";
@@ -422,9 +425,15 @@ function App() {
 function Shell() {
   const [open, setOpen] = useState(false);
   const [focus, setFocus] = useState(false);
+  const [focusFullscreen, setFocusFullscreen] = useState(false);
+  const [focusStartRequested, setFocusStartRequested] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const navigate = useNavigate();
   const { tasks, _subjects, _integrations, notifications } = useWorkspace();
+  const handleFocusNavigation = () => {
+    if (focus) requestFocusFullscreen();
+    setOpen(false);
+  };
   return (
     <div className="app-shell">
       <aside className={`sidebar ${open ? "sidebar-open" : ""}`}>
@@ -448,7 +457,7 @@ function Shell() {
               key={to}
               to={to}
               end={to === "/"}
-              onClick={() => setOpen(false)}
+              onClick={handleFocusNavigation}
             >
               <Icon size={17} />
               <span>{label}</span>
@@ -462,11 +471,11 @@ function Shell() {
         </nav>
         <div className="nav-section">
           <span>WORKSPACE</span>
-          <NavLink to="/integrations">
+          <NavLink to="/integrations" onClick={handleFocusNavigation}>
             <Plug size={17} />
             Integrations
           </NavLink>
-          <NavLink to="/settings">
+          <NavLink to="/settings" onClick={handleFocusNavigation}>
             <Settings size={17} />
             Settings
           </NavLink>
@@ -544,7 +553,9 @@ function Shell() {
               element={
                 <HomeDashboard
                   setFocus={() => {
-                    setFocus(true);
+                    requestFocusFullscreen();
+                    setFocusStartRequested(true);
+                    setFocus(false);
                     navigate("/focus");
                   }}
                 />
@@ -557,7 +568,15 @@ function Shell() {
             <Route path="/planner" element={<AdaptivePlannerPage />} />
             <Route
               path="/focus"
-              element={<ClayFocusPage active={focus} setActive={setFocus} />}
+              element={
+                <ClayFocusPage
+                  active={focus}
+                  setActive={setFocus}
+                  fullscreenActive={focusFullscreen}
+                  startRequested={focusStartRequested}
+                  clearStartRequest={() => setFocusStartRequested(false)}
+                />
+              }
             />
             <Route path="/knowledge-check" element={<KnowledgeCheck />} />
             <Route path="/tutor" element={<AshvekStudyCoachPage />} />
@@ -575,9 +594,10 @@ function Shell() {
           </Routes>
         </div>
       </main>
+      <FocusFullscreenGuard active={focus} onFullscreenChange={setFocusFullscreen} />
       <nav className="mobile-tabbar" aria-label="Primary navigation">
         {navItems.slice(0, 4).map(({ to, label, icon: Icon }) => (
-          <NavLink key={to} to={to} end={to === "/"}>
+          <NavLink key={to} to={to} end={to === "/"} onClick={handleFocusNavigation}>
             <Icon size={20} />
             <span>{label}</span>
           </NavLink>
@@ -2436,6 +2456,9 @@ function SettingsPage() {
 
 function Login() {
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const googleLogin = async () => {
     setError("");
@@ -2446,6 +2469,18 @@ function Login() {
     } catch (reason) {
       setError(reason.message);
       setGoogleLoading(false);
+    }
+  };
+  const passwordLogin = async (event) => {
+    event.preventDefault();
+    setError("");
+    setLoginLoading(true);
+    try {
+      await authService.login({ email, password });
+      window.location.assign("/");
+    } catch (reason) {
+      setError(reason.message);
+      setLoginLoading(false);
     }
   };
   return (
@@ -2468,6 +2503,20 @@ function Login() {
           <span>G</span>{" "}
           {googleLoading ? "Connecting..." : "Continue with Google"}
         </button>
+        <div className="auth-divider"><span>or use your RISE account</span></div>
+        <form className="auth-login-form" onSubmit={passwordLogin}>
+          <label>
+            Email
+            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" />
+          </label>
+          <label>
+            Password
+            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} required autoComplete="current-password" />
+          </label>
+          <button className="button button-primary" type="submit" disabled={loginLoading}>
+            {loginLoading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
         {error && <p className="api-error">{error}</p>}
       </div>
       <p className="auth-tagline">Plan smarter. Focus deeper. Rise higher.</p>
