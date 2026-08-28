@@ -3,6 +3,7 @@ import { post } from './api'
 const GIS_URL = 'https://accounts.google.com/gsi/client'
 const CLASSROOM_SCOPES = [
   'https://www.googleapis.com/auth/classroom.courses.readonly',
+  'https://www.googleapis.com/auth/classroom.coursework.me',
   'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
   'https://www.googleapis.com/auth/drive.readonly',
 ]
@@ -25,13 +26,14 @@ function loadGis() {
 export async function requestClassroomAccessToken(scopes = CLASSROOM_SCOPES) {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
   if (!clientId) throw new Error('Google Classroom authorization is not configured.')
+  console.info('[RISE] Requesting Classroom OAuth scopes:', scopes)
   await loadGis()
   return new Promise((resolve, reject) => {
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: scopes.join(' '),
-      include_granted_scopes: true,
-      callback: response => response.error ? reject(new Error('Google Classroom authorization was denied.')) : resolve(response.access_token),
+      include_granted_scopes: false,
+      callback: response => response.error ? reject(new Error('Google Classroom authorization was denied.')) : (console.info('[RISE] Classroom OAuth token received for requested scopes.'), resolve(response.access_token)),
       error_callback: () => reject(new Error('Google Classroom authorization could not be completed.')),
     })
     client.requestAccessToken({ prompt: 'consent select_account', scope: scopes.join(' ') })

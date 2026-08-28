@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 CLASSROOM_GIS_SCOPES = (
     'https://www.googleapis.com/auth/classroom.courses.readonly',
+    'https://www.googleapis.com/auth/classroom.coursework.me',
     'https://www.googleapis.com/auth/classroom.courseworkmaterials.readonly',
     'https://www.googleapis.com/auth/drive.readonly',
 )

@@ -49,13 +49,13 @@ class ClassroomSyncTests(TestCase):
         first = ClassroomSyncEngine(self.connection, FakeSyncService).sync()
         second = ClassroomSyncEngine(self.connection, FakeSyncService).sync()
         self.assertEqual(first['courses_created'], 1)
-        self.assertEqual(first['tasks_created'], 0)
+        self.assertEqual(first['tasks_created'], 1)
         self.assertEqual(first['resources_created'], 1)
         self.assertEqual(second['courses_created'], 0)
         self.assertEqual(GoogleCourse.objects.count(), 1)
-        self.assertEqual(GoogleCoursework.objects.count(), 0)
+        self.assertEqual(GoogleCoursework.objects.count(), 1)
         self.assertEqual(GoogleMaterial.objects.count(), 1)
-        self.assertEqual(Task.objects.filter(source=Task.Source.GOOGLE_CLASSROOM).count(), 0)
+        self.assertEqual(Task.objects.filter(source=Task.Source.GOOGLE_CLASSROOM).count(), 1)
         self.assertEqual(Resource.objects.filter(source=Resource.Source.GOOGLE_CLASSROOM).count(), 1)
 
     def test_course_archive_does_not_delete_rise_subject(self):

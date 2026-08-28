@@ -1,13 +1,30 @@
 from datetime import datetime, timedelta
 
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import serializers
 from .models import PlannerEvent, StudySession, Task
 
 class TaskSerializer(serializers.ModelSerializer):
+    classroom_url = serializers.SerializerMethodField()
+    submission_status = serializers.SerializerMethodField()
+
     class Meta:
         model = Task
-        fields = '__all__'
+        fields = ('id', 'student', 'subject', 'title', 'description', 'deadline', 'estimated_minutes', 'priority', 'source', 'status', 'completed_at', 'created_at', 'updated_at', 'classroom_url', 'submission_status')
         read_only_fields = ('student', 'completed_at', 'created_at', 'updated_at')
+
+    def get_classroom_url(self, instance):
+        try:
+            return instance.google_coursework.alternate_link or None
+        except ObjectDoesNotExist:
+            return None
+
+    def get_submission_status(self, instance):
+        try:
+            submission = instance.google_coursework.submissions.order_by('-update_time').first()
+        except ObjectDoesNotExist:
+            return None
+        return submission.state if submission else 'NOT_SUBMITTED'
     def validate(self, attrs):
         subject = attrs.get('subject')
         if subject and subject.semester.student_id != self.context['request'].user.id:

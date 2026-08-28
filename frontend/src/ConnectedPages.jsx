@@ -85,7 +85,20 @@ const mapTask = (task, subjects) => ({
   subjectId: task.subject,
   subject:
     subjects.find((item) => item.id === task.subject)?.name || task.subject,
+  classroomUrl: task.classroom_url,
+  submissionStatus: task.submission_status,
 });
+const taskIsToday = (task) => {
+  const deadline = new Date(task.deadline || task.due);
+  const today = new Date();
+  return deadline.toDateString() === today.toDateString();
+};
+const taskIsUpcoming = (task) => {
+  const deadline = new Date(task.deadline || task.due);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return deadline >= today && !taskIsToday(task);
+};
 const openResource = (note) => {
   const url = resourceUrl(note);
   if (!url) return;
@@ -103,7 +116,7 @@ const isGoogleResource = (note) => /(?:drive\.google\.com|docs\.google\.com|clas
 const downloadResource = async (note) => {
   if (!note.file && isGoogleResource(note) && note.id) {
     try {
-      const blob = await resourceService.preview(note.id);
+      const blob = await resourceService.download(note.id);
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
@@ -135,6 +148,7 @@ const resourceMeta = (item) => {
 
 function ResourceViewer({ resource, onClose }) {
   const [previewFile, setPreviewFile] = useState(null);
+  const [previewHtml, setPreviewHtml] = useState("");
   const [previewError, setPreviewError] = useState("");
   const url = resourceUrl(resource);
   const googleUrl = isGoogleResource(resource);
@@ -145,6 +159,7 @@ function ResourceViewer({ resource, onClose }) {
     if (!url || (!googleUrl && !isPdf)) return undefined;
     let cancelled = false;
     setPreviewFile(null);
+    setPreviewHtml("");
     setPreviewError("");
     const fileRequest = googleUrl && resource.id
       ? resourceService.preview(resource.id)
@@ -155,7 +170,9 @@ function ResourceViewer({ resource, onClose }) {
     fileRequest
       .then((blob) => {
         if (cancelled) return;
-        if (blob.type === "application/pdf" || isPdf) {
+        if (blob.type.includes("html")) {
+          blob.text().then((html) => !cancelled && setPreviewHtml(html));
+        } else if (blob.type === "application/pdf" || isPdf) {
           setPreviewFile(new File([blob], resource.title || "resource.pdf", { type: "application/pdf" }));
         } else {
           setPreviewError("This file type cannot be previewed inside RISE.");
@@ -186,6 +203,8 @@ function ResourceViewer({ resource, onClose }) {
         <div className="resource-viewer-body">
           {previewFile ? (
             <PdfViewer file={previewFile} />
+          ) : previewHtml ? (
+            <div className="resource-viewer-html" dangerouslySetInnerHTML={{ __html: previewHtml }} />
           ) : (
             <div className="resource-viewer-fallback">
               <FileText size={32} />
@@ -709,7 +728,8 @@ export function ConnectedTasks() {
     (task) =>
       filter === "All" ||
       (filter === "Completed" && task.status === "completed") ||
-      (filter !== "Completed" && task.status !== "completed"),
+      (filter === "Today" && task.status !== "completed" && taskIsToday(task)) ||
+      (filter === "Upcoming" && task.status !== "completed" && taskIsUpcoming(task)),
   );
   const openNew = () =>
     setForm({
@@ -818,10 +838,13 @@ export function ConnectedTasks() {
                 <small>
                   {task.subject} · {task.source}
                 </small>
+                  {task.description && <small>{task.description}</small>}
+                  {task.classroomUrl && <a className="task-classroom-link" href={task.classroomUrl}>Google Classroom</a>}
               </div>
               <div className="task-due">
                 <b>{task.due}</b>
                 <small>{task.estimate}</small>
+                  {task.submissionStatus && <small>{task.submissionStatus.replaceAll("_", " ")}</small>}
               </div>
               <button
                 className="icon-button"

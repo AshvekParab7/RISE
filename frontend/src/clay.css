@@ -1,30 +1,30 @@
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Merriweather:wght@700;900&display=swap");
 
 :root {
-  --purple: #715a5a;
-  --blue: #4f5a5c;
-  --orange: #a77d68;
-  --lavender: #e3e1ee;
-  --ink: #212028;
-  --muted: #64636e;
-  --line: rgba(72, 70, 75, 0.12);
-  --surface: #f4fbfa;
-  --wash: #d3dad9;
-  --green: #4f8b70;
-  --red: #ba4a4a;
-  --clay-canvas: #d3dad9;
-  --clay-raised: #e8efee;
-  --clay-light: rgba(255, 255, 255, 0.78);
-  --clay-dark: rgba(104, 116, 115, 0.34);
+  --purple: #7658df;
+  --blue: #7188c5;
+  --orange: #df9a68;
+  --lavender: #e6ddff;
+  --ink: #2c2940;
+  --muted: #77738b;
+  --line: rgba(91, 78, 132, 0.12);
+  --surface: #fcfbff;
+  --wash: #eeeefa;
+  --green: #55a486;
+  --red: #d36573;
+  --clay-canvas: #e9e8f5;
+  --clay-raised: #f5f3fc;
+  --clay-light: rgba(255, 255, 255, 0.86);
+  --clay-dark: rgba(122, 116, 151, 0.28);
   --clay-shadow:
-    16px 18px 36px rgba(115, 126, 125, 0.31),
-    -10px -10px 26px rgba(255, 255, 255, 0.72);
+    16px 18px 36px rgba(125, 117, 157, 0.24),
+    -10px -10px 26px rgba(255, 255, 255, 0.82);
   --clay-shadow-soft:
-    9px 10px 22px rgba(115, 126, 125, 0.24),
-    -7px -7px 18px rgba(255, 255, 255, 0.68);
+    9px 10px 22px rgba(125, 117, 157, 0.19),
+    -7px -7px 18px rgba(255, 255, 255, 0.78);
   --clay-inset:
-    inset 5px 5px 10px rgba(119, 130, 129, 0.24),
-    inset -5px -5px 10px rgba(255, 255, 255, 0.68);
+    inset 5px 5px 10px rgba(126, 117, 157, 0.18),
+    inset -5px -5px 10px rgba(255, 255, 255, 0.78);
   color: var(--ink);
   background: var(--clay-canvas);
   font-family: "Manrope", sans-serif;
@@ -2279,4 +2279,366 @@ textarea {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+body {
+  background: linear-gradient(135deg, #f8f7ff 0%, var(--clay-canvas) 52%, #e8effb 100%);
+}
+
+.app-shell,
+.app-shell .main {
+  background: transparent;
+}
+
+.app-shell .sidebar {
+  background: rgba(247, 245, 253, 0.88);
+  box-shadow: 18px 0 38px rgba(120, 108, 165, 0.18), inset -1px 0 0 rgba(255, 255, 255, 0.82);
+}
+
+.app-shell .sidebar .brand-mark {
+  color: var(--purple);
+  background: #fbfaff;
+}
+
+.app-shell .sidebar nav a.active,
+.app-shell .sidebar .nav-section a.active {
+  color: var(--purple);
+  background: #e6ddff;
+  box-shadow: 6px 7px 14px rgba(120, 108, 165, 0.2), -4px -4px 11px rgba(255, 255, 255, 0.86), inset 1px 1px 2px rgba(255, 255, 255, 0.62);
+}
+
+.app-shell .sidebar nav a em {
+  background: #d9ceff;
+  color: #664bc7;
+}
+
+.topbar {
+  background: rgba(250, 249, 255, 0.68);
+  box-shadow: 0 8px 22px rgba(120, 108, 165, 0.1);
+}
+
+.panel,
+.stat,
+.subject-card,
+.test-card,
+.integration-card,
+.subject-hero,
+.onboard-card,
+.auth-card,
+.tutor-upload-card,
+.upload-strip,
+.clay-card {
+  background: rgba(247, 245, 253, 0.88);
+  box-shadow: var(--clay-shadow), inset 2px 2px 4px rgba(255, 255, 255, 0.68), inset -2px -2px 4px rgba(102, 91, 145, 0.04);
+}
+
+.button,
+.clay-action,
+.icon-button,
+.date-chip,
+.search {
+  background: #f5f2fc;
+  color: var(--ink);
+  box-shadow: var(--clay-shadow-soft), inset 1px 1px 2px rgba(255, 255, 255, 0.72);
+}
+
+.button-primary,
+.button.button-primary,
+.clay-action.primary {
+  color: #fff;
+  background: linear-gradient(135deg, #8b6df2, #6e50d4);
+  box-shadow: 8px 9px 18px rgba(109, 80, 212, 0.28), -5px -5px 12px rgba(255, 255, 255, 0.72), inset 1px 1px 3px rgba(255, 255, 255, 0.34);
+}
+
+input,
+select,
+textarea,
+.note-search,
+.chat-input,
+.planner-chat-input,
+.filter-select {
+  background: #eeeafa !important;
+  box-shadow: var(--clay-inset);
+}
+
+.tabs button.active,
+.planner-tabs button.active {
+  color: #fff;
+  background: #7658df;
+  box-shadow: 4px 5px 10px rgba(109, 80, 212, 0.22), inset var(--clay-inset);
+}
+
+.progress-track {
+  background: #e5e0f3;
+}
+
+.api-error {
+  color: #a94e68;
+  background: #f9e5ee;
+}
+
+.mobile-tabbar {
+  background: rgba(249, 248, 255, 0.92);
+  box-shadow: 0 -8px 22px rgba(120, 108, 165, 0.16);
+}
+
+.note-row,
+.task-row,
+.planner-event,
+.clay-schedule-row,
+.clay-material-row,
+.clay-deadline-row,
+.subject-folder-head,
+.resource-toolbar,
+.quick-editor,
+.planner-toolbar,
+.question-block,
+.knowledge-result,
+.runner-question,
+.event-popup,
+.planner-chat,
+.chat,
+.test-runner,
+.focus-lock-dialog,
+.resource-viewer,
+.search-dialog,
+.onboard-card,
+.settings-card,
+.integration-card,
+.analytics-card {
+  border: 0;
+  border-radius: 24px;
+  background: rgba(247, 245, 253, 0.88);
+  box-shadow: var(--clay-shadow-soft), inset 2px 2px 4px rgba(255, 255, 255, 0.68), inset -2px -2px 4px rgba(102, 91, 145, 0.04);
+}
+
+.note-row,
+.task-row,
+.planner-event,
+.clay-deadline-row {
+  min-height: 58px;
+  padding: 12px 16px;
+}
+
+.note-row:hover,
+.task-row:hover,
+.planner-event:hover,
+.clay-material-row:hover,
+.clay-deadline-row:hover {
+  background: #fbfaff;
+  box-shadow: var(--clay-shadow-soft), inset 2px 2px 4px rgba(255, 255, 255, 0.78);
+  transform: translateY(-1px);
+}
+
+.subject-folder-head {
+  background: rgba(250, 249, 255, 0.92);
+}
+
+.subject-folder-list {
+  background: rgba(241, 238, 250, 0.54);
+}
+
+.clay-schedule-row,
+.clay-material-row {
+  background: rgba(250, 249, 255, 0.58);
+}
+
+.clay-schedule-row.active-row {
+  background: linear-gradient(135deg, #8b6df2, #6e50d4);
+  box-shadow: 9px 10px 21px rgba(109, 80, 212, 0.25), inset 1px 1px 3px rgba(255, 255, 255, 0.34);
+}
+
+.clay-schedule-row.active-row .clay-round-button {
+  color: #7658df;
+  background: #fbfaff;
+}
+
+.clay-bars {
+  background: rgba(250, 249, 255, 0.6);
+}
+
+.clay-bars > span {
+  background: #9e8af1;
+  box-shadow: inset 2px 2px 3px rgba(255, 255, 255, 0.45), 3px 4px 8px rgba(116, 90, 206, 0.14);
+}
+
+.clay-bars > span:nth-child(1) { background: #d8d0fb; }
+.clay-bars > span:nth-child(2) { background: #b8a8f5; }
+.clay-bars > span:nth-child(3) { background: #c9a5e9; }
+.clay-bars > span:nth-child(4) { background: #8d72e9; }
+.clay-bars > span.peak { background: #ed9fc4; }
+
+.clay-bars i {
+  color: #664bc7;
+  background: #fbfaff;
+  box-shadow: var(--clay-shadow-soft);
+}
+
+.planner-event,
+.event-popup,
+.planner-chat,
+.planner-day-view,
+.week-grid,
+.planner-chat-options button {
+  border-radius: 24px;
+}
+
+.planner-event {
+  background: #f5f2fc;
+  box-shadow: var(--clay-shadow-soft), inset 2px 2px 3px rgba(255, 255, 255, 0.72);
+}
+
+.planner-event .event-delete,
+.event-popup .icon-button,
+.focus-lock-dialog .icon-button {
+  background: #f0ecfa;
+  box-shadow: var(--clay-shadow-soft);
+}
+
+.options button,
+.test-tabs button,
+.planner-chat-options button,
+.event-color-choice,
+.source-tabs button {
+  border: 0;
+  border-radius: 16px;
+  background: #f0ecfa;
+  box-shadow: var(--clay-shadow-soft), inset 1px 1px 2px rgba(255, 255, 255, 0.7);
+}
+
+.options button:hover,
+.test-tabs button:hover,
+.planner-chat-options button:hover,
+.source-tabs button:hover {
+  transform: translateY(-1px);
+  background: #e6ddff;
+}
+
+.options button.selected,
+.test-tabs button.active,
+.source-tabs button.active {
+  color: #fff;
+  background: #7658df;
+  box-shadow: var(--clay-inset);
+}
+
+.chart-card,
+.chart-panel,
+.recharts-responsive-container {
+  border-radius: 24px;
+}
+
+.resource-viewer,
+.search-dialog,
+.focus-lock-dialog,
+.adaptive-modal {
+  background: rgba(247, 245, 253, 0.96);
+  box-shadow: 18px 20px 44px rgba(91, 78, 132, 0.24), -8px -8px 24px rgba(255, 255, 255, 0.76);
+}
+
+.clay-analytics .clay-page-heading {
+  padding: 4px 2px 0;
+}
+
+.clay-analytics .clay-page-heading h1 {
+  color: #2c2940;
+  font-size: clamp(2.2rem, 4vw, 3rem);
+}
+
+.clay-analytics .clay-segmented {
+  padding: 6px;
+  background: rgba(250, 249, 255, 0.72);
+  box-shadow: var(--clay-shadow-soft), var(--clay-inset);
+}
+
+.clay-analytics .clay-segmented button {
+  min-height: 38px;
+  border-radius: 999px;
+  color: var(--muted);
+}
+
+.clay-analytics .clay-segmented button.active {
+  color: #fff;
+  background: #7658df;
+  box-shadow: 5px 6px 12px rgba(109, 80, 212, 0.24), inset 1px 1px 2px rgba(255, 255, 255, 0.32);
+}
+
+.clay-analytics .clay-insight-stat,
+.clay-analytics .clay-distribution-card,
+.clay-analytics .clay-blocks-card,
+.clay-analytics .clay-analytics-footer {
+  background: linear-gradient(145deg, rgba(252, 251, 255, 0.96), rgba(241, 237, 252, 0.88));
+  box-shadow: 15px 17px 32px rgba(120, 108, 165, 0.18), -9px -9px 22px rgba(255, 255, 255, 0.82), inset 2px 2px 5px rgba(255, 255, 255, 0.72);
+}
+
+.clay-analytics .clay-stat-heading .clay-icon {
+  color: #7658df;
+  background: #e8e0ff;
+  box-shadow: var(--clay-shadow-soft), var(--clay-inset);
+}
+
+.clay-analytics .clay-big-number,
+.clay-analytics .clay-mastery-name {
+  color: #30294b;
+}
+
+.clay-analytics .clay-progress {
+  background: #e3def2;
+  box-shadow: var(--clay-inset);
+}
+
+.clay-analytics .clay-progress span {
+  background: linear-gradient(90deg, #b596ee, #7658df);
+  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.48);
+}
+
+.clay-analytics .clay-trend {
+  color: #55a486;
+}
+
+.clay-analytics .clay-distribution-chart,
+.clay-analytics .clay-weekly-bars {
+  background: rgba(252, 251, 255, 0.66);
+  box-shadow: var(--clay-inset), inset -2px -2px 5px rgba(126, 117, 157, 0.04);
+}
+
+.clay-analytics .clay-distribution-chart span,
+.clay-analytics .clay-weekly-bars span {
+  background: #9c86ea;
+  box-shadow: inset 2px 2px 3px rgba(255, 255, 255, 0.46), 3px 4px 8px rgba(116, 90, 206, 0.14);
+}
+
+.clay-analytics .clay-distribution-chart > div:nth-child(1) span,
+.clay-analytics .clay-distribution-chart > div:nth-child(6) span,
+.clay-analytics .clay-distribution-chart > div:nth-child(7) span {
+  background: #c9c0f3;
+}
+
+.clay-analytics .clay-distribution-chart > div:nth-child(2) span {
+  background: #b09bed;
+}
+
+.clay-analytics .clay-distribution-chart > div.peak::before,
+.clay-analytics .clay-distribution-chart > div.peak span {
+  background: #d98caf;
+}
+
+.clay-analytics .clay-block-grid button {
+  color: #716b83;
+  background: #f3effb;
+  box-shadow: var(--clay-shadow-soft), inset 1px 1px 2px rgba(255, 255, 255, 0.7);
+}
+
+.clay-analytics .clay-block-grid button.active {
+  color: #fff;
+  background: #7658df;
+}
+
+.clay-analytics .clay-block-grid button.accent {
+  color: #fff;
+  background: #d78faf;
+}
+
+.clay-analytics .clay-footer-insight svg {
+  color: #7658df;
 }

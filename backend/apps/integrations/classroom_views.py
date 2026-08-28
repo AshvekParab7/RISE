@@ -38,6 +38,9 @@ class ClassroomSyncView(APIView):
             return Response({'detail': 'Google Classroom authorization has expired. Reconnect Google Classroom before syncing.'}, status=status.HTTP_403_FORBIDDEN)
         missing_scopes = sorted(set(CLASSROOM_GIS_SCOPES) - set(connection.scopes or []))
         if missing_scopes:
+            logger.warning('Classroom synchronization missing scopes user_id=%s connection_id=%s required_scopes=%s stored_scopes=%s missing_scopes=%s', request.user.id, connection.id, list(CLASSROOM_GIS_SCOPES), connection.scopes or [], missing_scopes)
+            connection.clear_credentials()
+            connection.save(update_fields=('access_token_encrypted', 'refresh_token_encrypted', 'is_active', 'updated_at'))
             return Response({'detail': 'Additional Google Classroom permission is required to download materials.', 'missing_scopes': missing_scopes}, status=status.HTTP_403_FORBIDDEN)
         try:
             result = ClassroomSyncEngine(connection).sync()

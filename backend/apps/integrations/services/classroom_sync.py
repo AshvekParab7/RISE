@@ -68,7 +68,7 @@ class ClassroomSyncEngine:
         self.service = service_class(connection)
 
     def sync(self):
-        summary = {'courses_found': 0, 'courses_created': 0, 'courses_updated': 0, 'tasks_created': 0, 'tasks_updated': 0, 'resources_created': 0, 'resources_updated': 0, 'resources_downloaded': 0, 'errors': []}
+        summary = {'courses_found': 0, 'courses_created': 0, 'courses_updated': 0, 'tasks_created': 0, 'tasks_updated': 0, 'resources_created': 0, 'resources_updated': 0, 'resources_downloaded': 0, 'resources_skipped': 0, 'errors': []}
         courses = self.service.get_courses(); summary['courses_found'] = len(courses)
         semester = Semester.objects.filter(student=self.connection.user, is_current=True).first() or Semester.objects.filter(student=self.connection.user).first()
         if not semester:
@@ -82,6 +82,11 @@ class ClassroomSyncEngine:
                     subject = Subject.objects.create(semester=semester, name=course.get('name', 'Google Classroom Course'), code=f'GC-{course_id[-6:]}', difficulty=Subject.Difficulty.MEDIUM, target_grade='')
                 record, created = GoogleCourse.objects.update_or_create(google_connection=self.connection, google_course_id=course_id, defaults={'name': course.get('name', ''), 'section': course.get('section', ''), 'description': course.get('description', ''), 'room': course.get('room', ''), 'course_state': course.get('courseState', ''), 'course_created_at': _parse_google_datetime(course.get('creationTime')), 'course_updated_at': _parse_google_datetime(course.get('updateTime')), 'rise_subject': subject, 'last_synced_at': timezone.now(), 'is_active': course.get('courseState', 'ACTIVE') != 'DELETED'})
                 summary['courses_created' if created else 'courses_updated'] += 1
+                try:
+                    for work in self.service.get_coursework(course_id): self._sync_work(record, work, summary)
+                except Exception as exc:
+                    logger.exception('Classroom coursework sync failed course_id=%s', course_id)
+                    summary['errors'].append({'course_id': course_id, 'message': f'Coursework sync failed ({type(exc).__name__}).'})
                 for material in self.service.get_course_materials(course_id): self._sync_material(record, material, summary)
             except (KeyError, ClassroomApiError, Exception) as exc:
                 summary['errors'].append({'course_id': course.get('id'), 'message': 'Course sync failed.'})
@@ -203,18 +208,33 @@ class ClassroomSyncEngine:
             resource.resource_type = material_type
             resource.source = Resource.Source.GOOGLE_CLASSROOM
             resource.is_ai_ready = False
-            try:
-                downloaded = self.service.download_material({'title': defaults['title'], 'materials': [{'driveFile': {'driveFile': drive_file}}]})
-            except ClassroomApiError:
+            if resource.processing_status == Resource.ProcessingStatus.READY or resource.processing_status == Resource.ProcessingStatus.FAILED:
+                summary['resources_skipped'] += 1
                 downloaded = None
-                summary['errors'].append({'material_id': material_key, 'message': 'Material content could not be downloaded.'})
+            else:
+                try:
+                    downloaded = self.service.download_material({'title': defaults['title'], 'materials': [{'driveFile': {'driveFile': drive_file}}]})
+                except Exception as exc:
+                    downloaded = None
+                    logger.exception('Classroom attachment failed stage=download material_id=%s drive_file_id=%s', material_key, drive_file_id)
+                    resource.processing_status = Resource.ProcessingStatus.FAILED
+                    resource.processing_error = f'{type(exc).__name__}: material could not be downloaded.'
+                    resource.save(update_fields=['processing_status', 'processing_error', 'updated_at'])
+                    summary['errors'].append({'material_id': material_key, 'message': f'Material content could not be downloaded ({type(exc).__name__}).'})
             if downloaded:
-                resource.file.save(downloaded['filename'], ContentFile(downloaded['content']), save=False)
-                resource.processing_status = Resource.ProcessingStatus.PROCESSING
-                resource.processing_error = ''
-                resource.save()
-                process_resource(resource)
-                summary['resources_downloaded'] = summary.get('resources_downloaded', 0) + 1
+                try:
+                    resource.file.save(downloaded['filename'], ContentFile(downloaded['content']), save=False)
+                    resource.processing_status = Resource.ProcessingStatus.PROCESSING
+                    resource.processing_error = ''
+                    resource.save()
+                    process_resource(resource)
+                    summary['resources_downloaded'] = summary.get('resources_downloaded', 0) + 1
+                except Exception as exc:
+                    logger.exception('Classroom attachment failed stage=processing material_id=%s drive_file_id=%s', material_key, drive_file_id)
+                    resource.processing_status = Resource.ProcessingStatus.FAILED
+                    resource.processing_error = f'{type(exc).__name__}: material could not be processed.'
+                    resource.save(update_fields=['processing_status', 'processing_error', 'updated_at'])
+                    summary['errors'].append({'material_id': material_key, 'message': f'Material content could not be processed ({type(exc).__name__}).'})
             else:
                 resource.save(update_fields=['subject', 'title', 'description', 'resource_type', 'source', 'is_ai_ready', 'updated_at'])
             if record.rise_resource_id != resource.id:

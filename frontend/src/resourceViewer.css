@@ -51,6 +51,12 @@
   background: white;
 }
 
+.resource-viewer-html {
+  height: 100%;
+  overflow: auto;
+  background: white;
+}
+
 .resource-viewer-fallback {
   height: 100%;
   display: grid;

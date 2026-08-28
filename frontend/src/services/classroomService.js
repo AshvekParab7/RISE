@@ -9,8 +9,7 @@ export const classroomService = {
   sync: async () => {
     try { return await post('/integrations/google/classroom/sync/', {}) } catch (error) {
       if (![400, 403].includes(error.status)) throw error
-      const missingScopes = error.data?.missing_scopes || []
-      const accessToken = await requestClassroomAccessToken(missingScopes.length ? missingScopes : undefined)
+      const accessToken = await requestClassroomAccessToken()
       await authorizeClassroomToken(accessToken)
       return post('/integrations/google/classroom/sync/', {})
     }

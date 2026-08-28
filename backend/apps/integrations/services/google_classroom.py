@@ -41,6 +41,7 @@ class GoogleClassroomService:
                 payload = request.execute()
             except HttpError as exc:
                 status = getattr(exc.resp, 'status', 500)
+                logger.error('Google Classroom API failed operation=%s status=%s response=%s', key, status, getattr(exc, 'content', b'')[:1000], exc_info=True)
                 raise ClassroomApiError(status, 'Google Classroom request failed.') from exc
             items.extend(payload.get(key, []))
             page_token = payload.get('nextPageToken')
