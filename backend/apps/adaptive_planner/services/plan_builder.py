@@ -14,6 +14,12 @@ def _aware(day, value):
     return timezone.make_aware(datetime.combine(day, value))
 
 
+def _exam_window(exam):
+    start = exam.start_time or datetime.min.time().replace(hour=9)
+    end = exam.end_time or (datetime.combine(exam.exam_date, start) + timedelta(hours=2)).time()
+    return _aware(exam.exam_date, start), _aware(exam.exam_date, end)
+
+
 def _free_windows(start, end, blocked):
     cursor = start
     windows = []
@@ -77,7 +83,7 @@ def build_plan_preview(user, start_date, days=7, daily_minutes=180, day_start=No
         day_window_start = _aware(day, day_start)
         day_window_end = _aware(day, day_end)
         blockers = [(start, end, 'College or calendar event') for start, end in context['blocked_windows']]
-        blockers.extend((_aware(exam.exam_date, exam.start_time), _aware(exam.exam_date, exam.end_time), f'Exam: {exam.title}') for exam in context['exams'] if exam.exam_date == day)
+        blockers.extend((*_exam_window(exam), f'Exam: {exam.title}') for exam in context['exams'] if exam.exam_date == day)
         blockers.extend(_existing_blockers(user, day_window_start, day_window_end))
         blocked_summary.extend({'day': day.isoformat(), 'start_at': start.isoformat(), 'end_at': end.isoformat(), 'title': title} for start, end, title in blockers if start.date() == day)
         remaining = daily_minutes

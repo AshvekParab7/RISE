@@ -79,6 +79,7 @@ class StudySession(models.Model):
     score = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     awarded_points = models.IntegerField(default=0)
     completion_metadata = models.JSONField(default=dict, blank=True)
+    tab_switch_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     def clean(self):
         if self.planned_minutes <= 0:

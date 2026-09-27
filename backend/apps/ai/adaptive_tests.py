@@ -37,3 +37,11 @@ class AdaptiveAssessmentApiTests(APITestCase):
         response = self.client.post('/api/ai/tests/generate/', {'subject_id': self.subject.id, 'topic_id': self.topic.id, 'question_count': 1}, format='json')
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data['questions'][0]['difficulty'], 'EASY')
+
+    @override_settings(OPENAI_API_KEY='')
+    def test_generation_supports_subject_without_topic(self):
+        subject = Subject.objects.create(semester=self.subject.semester, name='Applied Physics')
+        response = self.client.post('/api/ai/tests/generate/', {'subject_id': subject.id, 'question_count': 2}, format='json')
+        self.assertEqual(response.status_code, 201)
+        self.assertIsNone(response.data['topic'])
+        self.assertEqual(len(response.data['questions']), 2)

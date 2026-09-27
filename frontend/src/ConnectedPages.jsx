@@ -66,6 +66,16 @@ const ErrorMessage = ({ message }) =>
   message ? <p className="api-error">{message}</p> : null;
 const asArray = (value) =>
   Array.isArray(value) ? value : value?.results || [];
+const formatTaskDeadline = (value) => {
+  if (!value) return "No deadline";
+  const deadline = new Date(value);
+  if (Number.isNaN(deadline.getTime())) return value;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(deadline);
+};
 const createSemesterForm = () => {
   const year = new Date().getFullYear();
   return {
@@ -79,7 +89,7 @@ const createSemesterForm = () => {
 };
 const mapTask = (task, subjects) => ({
   ...task,
-  due: task.deadline,
+  due: formatTaskDeadline(task.deadline),
   estimate: `${task.estimated_minutes} min`,
   status: task.status === "COMPLETED" ? "completed" : "open",
   subjectId: task.subject,
@@ -829,22 +839,24 @@ export function ConnectedTasks() {
       ) : (
         <div className="panel task-list">
           {shown.map((task) => (
-            <div className="task-row" key={task.id}>
+            <div className={`task-row ${task.status === "completed" ? "is-completed" : ""}`} key={task.id}>
               <button className="task-check" onClick={() => complete(task)}>
                 {task.status === "completed" && <Check size={15} />}
               </button>
               <div className="task-details">
                 <b>{task.title}</b>
                 <small>
-                  {task.subject} · {task.source}
+                  {task.subject}
                 </small>
-                  {task.description && <small>{task.description}</small>}
-                  {task.classroomUrl && <a className="task-classroom-link" href={task.classroomUrl}>Google Classroom</a>}
+                <span className="task-source">{task.source}</span>
+                {task.description && <small className="task-description">{task.description}</small>}
+                {task.classroomUrl && <a className="task-classroom-link" href={task.classroomUrl}>Open in Classroom</a>}
               </div>
               <div className="task-due">
+                <span>DEADLINE</span>
                 <b>{task.due}</b>
                 <small>{task.estimate}</small>
-                  {task.submissionStatus && <small>{task.submissionStatus.replaceAll("_", " ")}</small>}
+                {task.submissionStatus && <small>{task.submissionStatus.replaceAll("_", " ")}</small>}
               </div>
               <button
                 className="icon-button"

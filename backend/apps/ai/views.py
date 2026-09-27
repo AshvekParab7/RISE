@@ -180,9 +180,11 @@ class TestSubmitView(APIView):
         test = get_object_or_404(GeneratedTest, id=test_id, student=request.user); serializer = TestSubmissionSerializer(data=request.data); serializer.is_valid(raise_exception=True)
         if TestSubmission.objects.filter(test=test, student=request.user).exists(): return Response({'detail': 'This assessment has already been completed.'}, status=status.HTTP_409_CONFLICT)
         raw_answers = serializer.validated_data['answers']; answers = {str(item['question_id']): item.get('selected_option') for item in raw_answers} if isinstance(raw_answers, list) else raw_answers
-        questions = list(test.questions.all()); performance = {}; score = 0
+        questions = list(test.questions.all()); performance = {}; score = 0; review = []
         for question in questions:
             selected = answers.get(str(question.id)); correct = selected == question.correct_answer; score += int(correct); key = str(test.topic_id or test.subject_id); bucket = performance.setdefault(key, {'correct': 0, 'total': 0, 'percentage': 0}); bucket['correct'] += int(correct); bucket['total'] += 1
+            if not correct:
+                review.append({'question': question.question, 'your_answer': selected or 'Not answered', 'correct_answer': question.correct_answer, 'explanation': question.explanation})
         total = len(questions); percentage = round(score / total * 100) if total else 0
         for bucket in performance.values(): bucket['percentage'] = round(bucket['correct'] / bucket['total'] * 100) if bucket['total'] else 0
         submission = TestSubmission.objects.create(test=test, student=request.user, answers=answers, score=score, total=total, percentage=percentage)
@@ -190,7 +192,7 @@ class TestSubmitView(APIView):
         updated_context = build_context(request.user)
         next_action = build_next_action(updated_context)
         daily_plan = build_daily_plan(updated_context)
-        return Response({'score': score, 'total': total, 'percentage': percentage, 'topic_performance': performance, 'mastery_change': mastery_change, 'new_mastery': mastery_change[-1]['after'] if mastery_change else None, 'next_action': next_action, 'daily_plan': daily_plan})
+        return Response({'score': score, 'total': total, 'percentage': percentage, 'review': review, 'topic_performance': performance, 'mastery_change': mastery_change, 'new_mastery': mastery_change[-1]['after'] if mastery_change else None, 'next_action': next_action, 'daily_plan': daily_plan})
 
 class ResourceStatusView(APIView):
     permission_classes = (permissions.IsAuthenticated,)

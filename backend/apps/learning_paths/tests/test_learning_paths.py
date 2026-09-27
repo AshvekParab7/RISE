@@ -6,7 +6,7 @@ from apps.accounts.models import User
 from ..models import LearningLevel, LearningPath
 from ..services.chunker import chunk_transcript
 from ..services.processor import process_learning_path
-from ..services.transcript import fetch_transcript
+from ..services.transcript import TranscriptError, fetch_transcript
 from ..services.youtube import YouTubeVideoError, extract_video_id, format_duration
 
 
@@ -47,6 +47,26 @@ class PipelineUnitTests(TestCase):
         self.assertEqual(list(path.levels.values_list('order', flat=True)), [1, 2, 3, 4])
         self.assertEqual(path.levels.first().status, LearningLevel.Status.AVAILABLE)
         self.assertEqual(path.levels.last().status, LearningLevel.Status.LOCKED)
+
+    @patch('apps.learning_paths.services.processor.generate_final_challenge', return_value={})
+    @patch('apps.learning_paths.services.processor.generate_level')
+    @patch('apps.learning_paths.services.processor.fetch_audio_transcript')
+    @patch('apps.learning_paths.services.processor.fetch_transcript')
+    @patch('apps.learning_paths.services.processor.fetch_video_title')
+    def test_caption_failure_uses_hindi_audio_transcript(self, title, captions, audio, generate, final_challenge):
+        user = User.objects.create_user('hindi-pipeline@example.com', 'Password123!')
+        path = LearningPath.objects.create(user=user, youtube_url='https://www.youtube.com/watch?v=dQw4w9WgXcQ', video_id='dQw4w9WgXcQ')
+        title.return_value = 'Hindi Lecture'
+        captions.side_effect = TranscriptError('No captions')
+        audio.return_value = ([{'text': 'यह विषय महत्वपूर्ण है', 'start': 0.0, 'duration': 4.0}], 'hi')
+        generate.return_value = {'title': 'मूल अवधारणा', 'description': 'हिंदी व्याख्या', 'objectives': [], 'key_concepts': ['अवधारणा'], 'notes': 'हिंदी नोट्स', 'checkpoint': {'type': 'SHORT_ANSWER', 'question': 'समझाइए', 'correct_answer': ['अवधारणा']}}
+        process_learning_path(path)
+        path.refresh_from_db()
+        self.assertEqual(path.status, LearningPath.Status.READY)
+        self.assertEqual(path.transcript_language, 'hi')
+        self.assertEqual(path.transcript_segments[0]['text'], 'यह विषय महत्वपूर्ण है')
+        audio.assert_called_once_with(path.youtube_url)
+        final_challenge.assert_called_once()
 
 
 class LearningPathApiTests(APITestCase):

@@ -37,7 +37,7 @@ class FocusStartSerializer(serializers.Serializer):
 
 
 class FocusStateSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=('sync', 'pause', 'resume', 'quit'))
+    action = serializers.ChoiceField(choices=('sync', 'pause', 'resume', 'visibility_pause', 'visibility_resume', 'quit'))
     end_reason = serializers.CharField(required=False, allow_blank=False, max_length=120)
 
     def validate(self, attrs):

@@ -59,5 +59,17 @@ class GoogleConnection(models.Model):
     def __str__(self):
         return f'{self.user.email} · {self.email or self.google_user_id}'
 
+
+class WhatsAppAssignmentReminder(models.Model):
+    task = models.OneToOneField('tasks.Task', on_delete=models.CASCADE, related_name='whatsapp_reminder')
+    sent_at = models.DateTimeField(null=True, blank=True)
+    message_sid = models.CharField(max_length=64, blank=True)
+    error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('-updated_at',)
+
 from .models_classroom import GoogleCourse, GoogleCoursework, GoogleMaterial, GoogleSubmission
 from .models_calendar import GoogleCalendar, GoogleCalendarEvent

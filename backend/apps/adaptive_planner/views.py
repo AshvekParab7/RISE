@@ -1,3 +1,5 @@
+import logging
+
 from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -22,6 +24,8 @@ from .serializers import (
 from .services.exam_schedule_parser import confirm_exam_rows, create_rows_for_upload
 from .services.overview import build_overview
 from .services.plan_builder import build_plan_preview, commit_plan
+
+logger = logging.getLogger(__name__)
 
 
 class OverviewView(APIView):
@@ -55,14 +59,19 @@ class PlanPreviewView(APIView):
         serializer = PlanPreviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        return Response(build_plan_preview(
-            request.user,
-            data.get('start_date') or timezone.localdate(),
-            data['days'],
-            data['daily_minutes'],
-            data['day_start'],
-            data['day_end'],
-        ))
+        try:
+            result = build_plan_preview(
+                request.user,
+                data.get('start_date') or timezone.localdate(),
+                data['days'],
+                data['daily_minutes'],
+                data['day_start'],
+                data['day_end'],
+            )
+        except Exception as exc:
+            logger.exception('Adaptive plan preview failed user_id=%s error_type=%s', request.user.id, type(exc).__name__)
+            return Response({'detail': 'Adaptive plan could not be generated. Check your exam times and study availability.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return Response(result)
 
 
 class PlanCommitView(APIView):
@@ -88,8 +97,12 @@ class ExamScheduleUploadCreateView(APIView):
     def post(self, request):
         serializer = ExamScheduleUploadSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        upload = serializer.save(student=request.user, original_filename=request.FILES['file'].name)
-        create_rows_for_upload(upload, request.data.get('ocr_text', ''))
+        try:
+            upload = serializer.save(student=request.user, original_filename=request.FILES['file'].name)
+            create_rows_for_upload(upload, request.data.get('ocr_text', ''))
+        except Exception as exc:
+            logger.exception('Exam schedule upload failed user_id=%s error_type=%s', request.user.id, type(exc).__name__)
+            return Response({'detail': 'Exam schedule could not be processed. Upload a clear PDF or image and try again.'}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         upload.refresh_from_db()
         return Response(ExamScheduleUploadSerializer(upload, context={'request': request}).data, status=status.HTTP_201_CREATED)
 

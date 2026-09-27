@@ -671,6 +671,8 @@ export default function PlannerPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useToastError("");
+  const visibleError =
+    error && error !== "RISE had trouble processing that request." ? error : "";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -939,13 +941,13 @@ export default function PlannerPage() {
             <p className="eyebrow">ADAPTIVE STUDY PLANNER</p>
             <h1>Build a week that learns.</h1>
           </div>
-          {error && (
+          {visibleError && (
             <button className="button" onClick={load} disabled={loading}>
               {loading ? "Loading..." : "Retry"}
             </button>
           )}
         </div>
-        {error && <p className="api-error">{error}</p>}
+        {visibleError && <p className="api-error">{visibleError}</p>}
         <details className="planner-adaptive-details" open>
           <summary>
             <span>

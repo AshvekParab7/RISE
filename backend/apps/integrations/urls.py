@@ -2,6 +2,7 @@ from django.urls import path
 from .views import GoogleConnectionView, GoogleOAuthCallbackView, GoogleOAuthStartView
 from .classroom_views import ClassroomAuthorizeView, ClassroomStatusView, ClassroomSyncView
 from .calendar_views import CalendarListView, CalendarStatusView, CalendarSyncView
+from .twilio_views import TwilioWhatsAppTestView
 
 urlpatterns = [
     path('google/', GoogleConnectionView.as_view()),
@@ -13,4 +14,5 @@ urlpatterns = [
     path('google/calendar/', CalendarStatusView.as_view()),
     path('google/calendar/calendars/', CalendarListView.as_view()),
     path('google/calendar/sync/', CalendarSyncView.as_view()),
+    path('twilio/whatsapp/test/', TwilioWhatsAppTestView.as_view()),
 ]

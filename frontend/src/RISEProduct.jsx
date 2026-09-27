@@ -77,6 +77,7 @@ import {
   plannerService,
 } from "./services/mockServices";
 import { authService } from "./services/authService";
+import { aiService as aiApiService } from "./services/aiService";
 import { firebaseAuthService } from "./services/firebase";
 import {
   ConnectedFocus as ConnectedFocusPage,
@@ -94,6 +95,9 @@ import AdaptivePlannerPage from "./timttable/PlannerPage";
 import { ClayAnalytics, ClayDashboard, ClaySettings } from "./ClayPages";
 import ClayFocusPage from "./focus/ClayFocus";
 import { focusSessionService } from "./focus/focusSessionService";
+import { resourceService } from "./services/resourceService";
+import { subjectService } from "./services/subjectService";
+import { topicService } from "./services/topicService";
 import { useWorkspace, WorkspaceContext } from "./context/WorkspaceContext";
 import { exitFocusFullscreen, focusFullscreenSupported, requestFocusFullscreen } from "./services/focusFullscreen";
 import { useAuth } from "./context/auth";
@@ -2031,15 +2035,97 @@ function MockTutorLegacy() {
   );
 }
 
+function MockExamBuilder({ onGenerated }) {
+  const [subjects, setSubjects] = useState([]);
+  const [topics, setTopics] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [subjectId, setSubjectId] = useState("");
+  const [topicId, setTopicId] = useState("");
+  const [resourceIds, setResourceIds] = useState([]);
+  const [duration, setDuration] = useState(30);
+  const [questionCount, setQuestionCount] = useState(10);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!hasSession()) {
+      setError("Sign in to build a mock exam from your notes.");
+      setLoading(false);
+      return;
+    }
+    Promise.all([subjectService.list(), topicService.list(), resourceService.list()])
+      .then(([subjectResponse, topicResponse, resourceResponse]) => {
+        const loadedSubjects = asArray(subjectResponse);
+        setSubjects(loadedSubjects);
+        setTopics(asArray(topicResponse));
+        setResources(asArray(resourceResponse));
+        setSubjectId(loadedSubjects[0]?.id || "");
+      })
+      .catch((reason) => setError(reason.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const subjectResources = resources.filter((resource) => resource.subject === subjectId);
+  const readyResources = subjectResources.filter((resource) => resource.processing_status === "READY");
+  const subjectTopics = topics.filter((topic) => topic.subject === subjectId);
+  const toggleResource = (id) => setResourceIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  const selectSubject = (value) => {
+    setSubjectId(value);
+    setTopicId("");
+    setResourceIds([]);
+  };
+  const generate = async () => {
+    if (!subjectId) return setError("Choose a subject first.");
+    if (!resourceIds.length) return setError("Choose at least one ready note or resource.");
+    setGenerating(true);
+    setError("");
+    try {
+      const result = await aiApiService.generateTest({ subject_id: subjectId, topic_id: topicId || null, resource_ids: resourceIds, question_count: questionCount, duration_minutes: duration });
+      onGenerated(result, duration);
+    } catch (reason) {
+      setError(reason.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  if (loading) return <div className="panel loading-state">Loading your subjects and study resources...</div>;
+  return (
+    <section className="mock-exam-builder panel">
+      <div className="mock-exam-builder-head">
+        <div>
+          <p className="eyebrow">PERSONALIZED MOCK EXAM</p>
+          <h2>Build from your study material</h2>
+          <p className="muted">RISE will generate questions only from the notes you select.</p>
+        </div>
+        <div className="test-icon"><Brain size={19} /></div>
+      </div>
+      {error && <p className="api-error">{error}</p>}
+      <div className="mock-exam-fields">
+        <label>Subject<select value={subjectId} onChange={(event) => selectSubject(event.target.value)}><option value="">Choose a subject</option>{subjects.map((subject) => <option value={subject.id} key={subject.id}>{subject.name}</option>)}</select></label>
+        <label>Topic (optional)<select value={topicId} onChange={(event) => setTopicId(event.target.value)} disabled={!subjectId}><option value="">All topics</option>{subjectTopics.map((topic) => <option value={topic.id} key={topic.id}>{topic.name}</option>)}</select></label>
+        <label>Duration<select value={duration} onChange={(event) => setDuration(Number(event.target.value))}><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option></select></label>
+        <label>Questions<select value={questionCount} onChange={(event) => setQuestionCount(Number(event.target.value))}><option value="5">5 questions</option><option value="10">10 questions</option><option value="15">15 questions</option><option value="20">20 questions</option></select></label>
+      </div>
+      <div className="mock-exam-resources">
+        <div className="mock-exam-resources-head"><div><b>Notes & resources</b><small>{readyResources.length ? "Select one or more sources" : "No ready resources for this subject"}</small></div>{readyResources.length > 0 && <button className="button" onClick={() => setResourceIds(resourceIds.length === readyResources.length ? [] : readyResources.map((resource) => resource.id))}>{resourceIds.length === readyResources.length ? "Clear all" : "Select all"}</button>}</div>
+        {readyResources.length ? <div className="mock-exam-resource-list">{readyResources.map((resource) => <label className="mock-exam-resource" key={resource.id}><input type="checkbox" checked={resourceIds.includes(resource.id)} onChange={() => toggleResource(resource.id)} /><span><b>{resource.title}</b><small>{resource.resource_type || "Resource"} · {resource.file_size ? `${resource.file_size} bytes` : "Ready"}</small></span></label>)}</div> : <div className="empty-state"><FileText size={22} /><p>Select a subject with processed notes to generate a grounded exam.</p></div>}
+      </div>
+      <div className="mock-exam-builder-footer"><small>{resourceIds.length} source{resourceIds.length === 1 ? "" : "s"} selected · {duration} minutes · {questionCount} questions</small><Button primary icon={Sparkles} onClick={generate} disabled={generating || !readyResources.length}>{generating ? "Generating exam..." : "Generate mock exam"}</Button></div>
+    </section>
+  );
+}
+
 function Tests() {
   const [started, setStarted] = useState(false);
-  const [tab, setTab] = useState("Recommended");
   const [answer, setAnswer] = useState(null);
-  const items = [
-    "Transport Layer Test",
-    "DBMS Foundations",
-    "Operating Systems Mock",
-  ];
+  const [generated, setGenerated] = useState(null);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [generatedAnswers, setGeneratedAnswers] = useState({});
+  const [examResult, setExamResult] = useState(null);
+  const [submittingExam, setSubmittingExam] = useState(false);
+  const [examError, setExamError] = useState("");
   return (
     <>
       <PageHeader
@@ -2048,29 +2134,32 @@ function Tests() {
         description="Turn study time into lasting understanding."
         action={<Button icon={ClipboardCheck}>Test history</Button>}
       />
-      <div className="tabs test-tabs">
-        {["Recommended", "Practice", "Mock Exams", "Completed"].map((item) => (
-          <button
-            className={tab === item ? "active" : ""}
-            onClick={() => setTab(item)}
-            key={item}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
-      {started ? (
-        <div className="quiz panel">
-          <div className="quiz-top">
-            <span>QUESTION 1 / 5</span>
-            <span>Computer Networks · Medium</span>
+      {examResult ? (
+        <div className="knowledge-result panel">
+          <div className="result-mark"><Trophy size={25} /></div>
+          <p className="eyebrow">EXAM COMPLETE</p>
+          <h2>Here is how you did.</h2>
+          <div className="score-line">
+            <b>{examResult.score}/{examResult.total}</b>
+            <span>Correct answers<br /><strong>{examResult.percentage}%</strong></span>
           </div>
-          <h2>{mockQuiz[0].question}</h2>
+          <p className="muted">Your score is based on the answers you submitted for this exam.</p>
+          {examResult.review?.length > 0 && <div className="exam-review"><h3>Review your mistakes</h3>{examResult.review.map((item, index) => <article className="exam-review-item" key={`${item.question}-${index}`}><span className="exam-review-number">Question {index + 1}</span><h4>{item.question}</h4><div className="exam-answer your-answer"><small>Your answer</small><p>{item.your_answer}</p></div><div className="exam-answer correct-answer"><small>Correct answer</small><p>{item.correct_answer}</p></div>{item.explanation && <div className="exam-explanation"><small>Why this is correct</small><p>{item.explanation}</p></div>}</article>)}</div>}
+          <Button primary onClick={() => { setExamResult(null); setGenerated(null); }}>Build another exam</Button>
+        </div>
+      ) : started ? (
+        <div className="quiz panel">
+          {examError && <p className="api-error">{examError}</p>}
+          <div className="quiz-top">
+            <span>QUESTION {questionIndex + 1} / {generated?.questions?.length || 5}</span>
+            <span>{generated?.subject || "Computer Networks"} · {generated?.duration || 15} min</span>
+          </div>
+          <h2>{(generated?.questions?.[questionIndex] || mockQuiz[0]).question}</h2>
           <div className="options">
-            {mockQuiz[0].options.map((option, index) => (
+            {(generated?.questions?.[questionIndex] || mockQuiz[0]).options.map((option, index) => (
               <button
-                className={answer === index ? "selected" : ""}
-                onClick={() => setAnswer(index)}
+                className={(generated ? generatedAnswers[generated.questions[questionIndex].id] === option : answer === index) ? "selected" : ""}
+                onClick={() => generated ? setGeneratedAnswers((current) => ({ ...current, [generated.questions[questionIndex].id]: option })) : setAnswer(index)}
                 key={option}
               >
                 <span>{String.fromCharCode(65 + index)}</span>
@@ -2080,42 +2169,43 @@ function Tests() {
           </div>
           <div className="quiz-footer">
             <span className="muted">Answer saved locally</span>
-            <Button primary onClick={() => setStarted(false)}>
-              Submit test <ChevronRight size={16} />
+            <Button primary disabled={submittingExam} onClick={async () => {
+              const currentQuestion = generated?.questions?.[questionIndex];
+              const currentAnswer = generated ? generatedAnswers[currentQuestion.id] : answer;
+              if (generated && !currentAnswer) return;
+              if (generated?.questions && questionIndex < generated.questions.length - 1) {
+                setGeneratedAnswers((current) => ({ ...current, [currentQuestion.id]: currentAnswer }));
+                setQuestionIndex((value) => value + 1);
+                setAnswer(null);
+              } else {
+                setSubmittingExam(true);
+                setExamError("");
+                try {
+                  if (generated) {
+                    const finalAnswers = { ...generatedAnswers, [currentQuestion.id]: currentAnswer };
+                    const result = await aiApiService.submitTest(generated.assessment_id, Object.entries(finalAnswers).map(([question_id, selected_option]) => ({ question_id, selected_option })));
+                    setExamResult(result);
+                  } else {
+                    const score = answer === mockQuiz[0].answer ? 1 : 0;
+                    setExamResult({ score, total: 1, percentage: score * 100, review: score ? [] : [{ question: mockQuiz[0].question, your_answer: answer === null ? "Not answered" : mockQuiz[0].options[answer], correct_answer: mockQuiz[0].options[mockQuiz[0].answer], explanation: "Congestion control prevents network overload by regulating traffic through the network." }] });
+                  }
+                  setStarted(false);
+                  setQuestionIndex(0);
+                  setAnswer(null);
+                  setGeneratedAnswers({});
+                } catch (reason) {
+                  setExamError(reason.message);
+                } finally {
+                  setSubmittingExam(false);
+                }
+              }
+            }}>
+              {generated?.questions && questionIndex < generated.questions.length - 1 ? "Next question" : submittingExam ? "Scoring..." : "Submit test"} <ChevronRight size={16} />
             </Button>
           </div>
         </div>
       ) : (
-        <div className="test-grid">
-          {items.map((title, index) => (
-            <div className="test-card panel" key={title}>
-              <div className="test-icon">
-                <Brain size={19} />
-              </div>
-              <Priority>{index === 0 ? "RECOMMENDED" : "PRACTICE"}</Priority>
-              <h2>{title}</h2>
-              <p className="muted">
-                {index === 0
-                  ? "Computer Networks · Transport Layer"
-                  : index === 1
-                    ? "Database Systems · Normalization"
-                    : "Operating Systems · Scheduling"}
-              </p>
-              <div className="test-meta">
-                <span>
-                  <ClipboardCheck size={14} /> {index === 0 ? 10 : 15} Questions
-                </span>
-                <span>
-                  <Clock3 size={14} /> 15 min
-                </span>
-                <span>Medium</span>
-              </div>
-              <Button primary onClick={() => setStarted(true)}>
-                Start test <ArrowUpRight size={15} />
-              </Button>
-            </div>
-          ))}
-        </div>
+        <MockExamBuilder onGenerated={(result, duration) => { setGenerated({ ...result, duration }); setQuestionIndex(0); setAnswer(null); setGeneratedAnswers({}); setExamResult(null); setStarted(true); }} />
       )}
     </>
   );

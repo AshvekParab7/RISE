@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowUpRight,
@@ -23,6 +23,7 @@ import {
 } from "./data/mockData";
 import { useAuth } from "./context/auth";
 import { useWorkspace } from "./context/WorkspaceContext";
+import { get, hasSession } from "./services/api";
 
 const localSubjects = (items) => (items.length ? items : mockSubjects);
 const localTasks = (items) => (items.length ? items : mockTasks);
@@ -315,6 +316,7 @@ function ClayDashboard({ setFocus }) {
 
 function ClayAnalytics({ subjectId }) {
   const { subjects, mastery } = useWorkspace();
+  const [tabSwitches, setTabSwitches] = useState(0);
   const availableSubjects = localSubjects(subjects);
   const selectedSubject = subjectId
     ? availableSubjects.find((subject) => subject.id === subjectId) ||
@@ -325,6 +327,14 @@ function ClayAnalytics({ subjectId }) {
       (mastery[right.id] || right.mastery) - (mastery[left.id] || left.mastery),
   )[0];
   const [range, setRange] = useState("Week");
+  useEffect(() => {
+    if (!hasSession()) return undefined;
+    get("/study-sessions/").then((value) => {
+      const sessions = Array.isArray(value) ? value : value?.results || [];
+      setTabSwitches(sessions.reduce((total, session) => total + (session.tab_switch_count || 0), 0));
+    }).catch(() => {});
+    return undefined;
+  }, []);
   const bars = [28, 42, 35, 65, 57, 82, 46];
   const blocks = [
     "8AM",
@@ -458,6 +468,7 @@ function ClayAnalytics({ subjectId }) {
             <strong>{range} view</strong> keeps your study rhythm visible
             without breaking your flow.
           </span>
+          <span className="clay-tab-switch-stat"><strong>Tab switches</strong>{tabSwitches} this period</span>
         </div>
       </section>
     </div>

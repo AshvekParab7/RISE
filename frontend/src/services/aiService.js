@@ -8,4 +8,5 @@ export const aiService = {
   appendPlannerMessage: (id, message) =>
     post(`/ai/planner/conversations/${id}/messages/`, message),
   generateTest: (payload) => post("/ai/tests/generate/", payload),
+  submitTest: (id, answers) => post(`/ai/tests/${id}/submit/`, { answers }),
 };

@@ -23,6 +23,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     firebase_uid = models.CharField(max_length=255, unique=True, null=True, blank=True)
     first_name = models.CharField(max_length=120, blank=True)
     last_name = models.CharField(max_length=120, blank=True)
+    phone_number = models.CharField(max_length=32, blank=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     avatar_url = models.URLField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,0 +1,18 @@
+.yt-processing-animation {
+  width: min(460px, 82vw);
+  height: 260px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 8px;
+  overflow: hidden;
+  border-radius: 28px;
+  background: transparent;
+}
+
+.yt-processing-animation video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+}

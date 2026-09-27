@@ -91,6 +91,17 @@ class FocusSessionApiTests(APITestCase):
         self.assertEqual(quit_response.data['status'], StudySession.Status.ABANDONED)
         self.assertEqual(quit_response.data['end_reason'], 'Need to leave')
 
+    def test_visibility_pause_resume_counts_tab_switch(self):
+        started = self.start()
+        session_id = started.data['id']
+        paused = self.client.post(f'/api/study-sessions/{session_id}/focus/state/', {'action': 'visibility_pause'}, format='json')
+        self.assertEqual(paused.status_code, status.HTTP_200_OK)
+        self.assertEqual(paused.data['focus_state'], StudySession.FocusState.PAUSED_BREAK)
+        self.assertEqual(paused.data['tab_switch_count'], 1)
+        resumed = self.client.post(f'/api/study-sessions/{session_id}/focus/state/', {'action': 'visibility_resume'}, format='json')
+        self.assertEqual(resumed.status_code, status.HTTP_200_OK)
+        self.assertEqual(resumed.data['focus_state'], StudySession.FocusState.ACTIVE)
+
     @patch('apps.ai.services.assessment_service.retrieve', return_value=[])
     def test_smart_break_question_is_scoped_and_hides_answer_key(self, retrieve):
         started = self.start(topic=self.topic)

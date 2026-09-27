@@ -40,6 +40,7 @@ class TestGenerateSerializer(serializers.Serializer):
     topic_id = serializers.UUIDField(required=False, allow_null=True)
     difficulty = serializers.ChoiceField(choices=('EASY', 'MEDIUM', 'HARD'), required=False, allow_null=True)
     question_count = serializers.IntegerField(min_value=1, max_value=20, default=5)
+    resource_ids = serializers.ListField(child=serializers.UUIDField(), required=False, default=list)
 
 class TestSubmissionSerializer(serializers.Serializer):
     answers = serializers.JSONField()

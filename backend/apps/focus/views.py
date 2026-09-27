@@ -75,6 +75,15 @@ class FocusSessionActionsMixin:
             session.focus_state = StudySession.FocusState.ACTIVE
             session.break_unlock_expires_at = None
             session.last_state_change_at = now
+        elif action_name == 'visibility_pause':
+            if session.focus_state == StudySession.FocusState.ACTIVE:
+                session.focus_state = StudySession.FocusState.PAUSED_BREAK
+                session.last_state_change_at = now
+                session.tab_switch_count += 1
+        elif action_name == 'visibility_resume':
+            if session.focus_state == StudySession.FocusState.PAUSED_BREAK and not session.break_unlock_expires_at:
+                session.focus_state = StudySession.FocusState.ACTIVE
+                session.last_state_change_at = now
         elif action_name == 'quit':
             if session.focus_state in (StudySession.FocusState.COMPLETED, StudySession.FocusState.ABANDONED):
                 return Response({'detail': 'This Focus session has already ended.'}, status=status.HTTP_409_CONFLICT)
@@ -84,7 +93,7 @@ class FocusSessionActionsMixin:
             session.ended_at = now
         session.save(update_fields=(
             'focus_state', 'break_unlock_expires_at', 'last_state_change_at',
-            'status', 'end_reason', 'ended_at',
+            'status', 'end_reason', 'ended_at', 'tab_switch_count',
         ))
         return Response(StudySessionSerializer(session, context={'request': request}).data)
 

@@ -1,5 +1,5 @@
 // hi
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
   CheckCircle2,
@@ -90,6 +90,12 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
   const [quitQuizLoading, setQuitQuizLoading] = useState(false);
   const [breakSeconds, setBreakSeconds] = useState(0);
   const [error, setError] = useState("");
+  const [visibilityPaused, setVisibilityPaused] = useState(false);
+  const [tabSwitches, setTabSwitches] = useState(0);
+  const visibilityAwayRef = useRef(false);
+  const preparingSessionRef = useRef(false);
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
   const navigate = useNavigate();
   const localTestMode = import.meta.env.DEV && !localStorage.getItem("rise_access_token");
 
@@ -143,7 +149,7 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
   }, [localTestMode, setActive]);
 
   useEffect(() => {
-    if (!active || !session?.id) return undefined;
+    if (!session?.id) return undefined;
     let mounted = true;
     if (localTestMode && session.id === LOCAL_TEST_SESSION_ID) {
       setStudyGuide({
@@ -161,6 +167,10 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
         generated_with: "Local Test_pdf",
       });
       setStudyGuideLoading(false);
+      if (preparingSessionRef.current) {
+        preparingSessionRef.current = false;
+        setActive(true);
+      }
       return () => {
         mounted = false;
       };
@@ -171,11 +181,18 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
     focusSessionService.studyGuide(session.id)
       .then((guide) => mounted && setStudyGuide(guide))
       .catch((reason) => mounted && setError(reason.message))
-      .finally(() => mounted && setStudyGuideLoading(false));
+      .finally(() => {
+        if (!mounted) return;
+        setStudyGuideLoading(false);
+        if (preparingSessionRef.current) {
+          preparingSessionRef.current = false;
+          setActive(true);
+        }
+      });
     return () => {
       mounted = false;
     };
-  }, [active, localTestMode, session?.id]);
+  }, [localTestMode, session?.id, setActive]);
 
   useEffect(() => {
     if (!active || !fullscreenActive || session?.focus_state !== "ACTIVE" || seconds === 0) return undefined;
@@ -185,6 +202,49 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
     );
     return () => window.clearInterval(timer);
   }, [active, fullscreenActive, session?.focus_state, seconds]);
+
+  useEffect(() => {
+    if (!active || !session?.id) return undefined;
+    const pauseForVisibility = () => {
+      if (document.visibilityState !== "hidden" && document.hasFocus()) return;
+      if (sessionRef.current?.focus_state !== "ACTIVE") return;
+      if (visibilityAwayRef.current) return;
+      visibilityAwayRef.current = true;
+      setVisibilityPaused(true);
+      setTabSwitches((value) => value + 1);
+      if (session.local_test) {
+        setSession((current) => ({ ...current, focus_state: "PAUSED_BREAK" }));
+        return;
+      }
+      focusSessionService.state(session.id, "visibility_pause")
+        .then(setSession)
+        .catch((reason) => setError(reason.message));
+    };
+    const resumeFromVisibility = () => {
+      if (document.visibilityState !== "visible" || !visibilityAwayRef.current) return;
+      visibilityAwayRef.current = false;
+      if (session.local_test) {
+        setSession((current) => ({ ...current, focus_state: "ACTIVE" }));
+        setVisibilityPaused(false);
+        return;
+      }
+      focusSessionService.state(session.id, "visibility_resume")
+        .then((response) => {
+          setSession(response);
+          setVisibilityPaused(false);
+        })
+        .catch((reason) => setError(reason.message));
+    };
+    const handleVisibilityChange = () => document.visibilityState === "hidden" ? pauseForVisibility() : resumeFromVisibility();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", pauseForVisibility);
+    window.addEventListener("focus", resumeFromVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", pauseForVisibility);
+      window.removeEventListener("focus", resumeFromVisibility);
+    };
+  }, [active, session?.id, session?.local_test]);
 
   useEffect(() => {
     if (!localTestMode || !session?.local_test) return;
@@ -244,6 +304,8 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
     setError("");
     setStudyGuide(null);
     setStarting(true);
+    preparingSessionRef.current = true;
+    setActive(false);
     if (localTestMode && subjectId === LOCAL_TEST_SUBJECT_ID) {
       setSession({
         id: LOCAL_TEST_SESSION_ID,
@@ -266,7 +328,6 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
         selected_resources: resourceIds,
       });
       setSeconds(45 * 60);
-      setActive(true);
       setStarting(false);
       return;
     }
@@ -278,7 +339,6 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
       });
       setSession(response);
       setSeconds(response.remaining_seconds ?? 45 * 60);
-      setActive(true);
     } catch (reason) {
       setError(reason.message);
     } finally {
@@ -566,6 +626,7 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
         </span>
       </div>
       {error && <p className="api-error">{error}</p>}
+      {visibilityPaused && <div className="focus-visibility-overlay" role="alert" aria-live="assertive"><div className="focus-visibility-card"><ShieldCheck size={22} /><strong>Focus session paused - please return to RISE.</strong><small>Tab switches this session: {tabSwitches}</small></div></div>}
       {!loading && (
         <div className={`clay-focus-workspace ${active ? "session-active" : ""}`}>
         <section className="clay-focus-timer">
@@ -579,8 +640,8 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
           </div>
           <div className="clay-focus-controls">
             {!active ? (
-              <button className="clay-action primary" onClick={start} disabled={starting}>
-                <Play size={16} /> {starting ? "Starting..." : "Start 45-minute session"}
+              <button className="clay-action primary" onClick={start} disabled={starting || studyGuideLoading}>
+                <Play size={16} /> {starting ? "Starting..." : studyGuideLoading ? "Preparing notes..." : "Start 45-minute session"}
               </button>
             ) : (
               <>
@@ -706,6 +767,14 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
             </fieldset>
           </section>
         ) : (
+          <>
+          <section className="focus-teaching-area" aria-label="Teaching content">
+            <div className="focus-teaching-kicker"><BookOpen size={16} /> YOUR TEACHING SPACE</div>
+            <h2>{studyGuide?.title || focusTitle}</h2>
+            <p className="focus-teaching-summary">{studyGuide?.summary || "Your selected material will guide this focus session."}</p>
+            {studyGuide?.steps?.[0] && <article className="focus-current-lesson"><span>RIGHT NOW</span><h3>{studyGuide.steps[0].title}</h3><p>{studyGuide.steps[0].detail}</p><strong>{studyGuide.steps[0].minutes ? `${studyGuide.steps[0].minutes} minutes` : "Focused learning"}</strong></article>}
+            {studyGuide?.key_takeaways?.[0] && <div className="focus-teaching-anchor"><span>KEY IDEA</span><p>{studyGuide.key_takeaways[0]}</p></div>}
+          </section>
           <section className="clay-focus-setup clay-study-guide" aria-label="Study guide">
             <div className="clay-focus-setup-heading">
               <BookOpen size={18} />
@@ -759,6 +828,7 @@ export default function ClayFocus({ active, setActive, fullscreenActive = true, 
               </div>
             )}
           </section>
+          </>
         )}
         </div>
       )}
