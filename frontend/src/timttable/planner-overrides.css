@@ -110,6 +110,10 @@
 
 .planner-main > .planner-day-view {
   min-height: 520px;
+  height: calc(100vh - 200px);
+  max-height: 750px;
+  display: flex;
+  flex-direction: column;
   padding: 24px;
   border: 1px solid var(--planner-border);
   border-radius: 14px;
@@ -436,6 +440,245 @@
   margin: 0 !important;
   transform: translate(-50%, -50%) !important;
   transition: none;
+}
+
+/* --- New Time Grid UI --- */
+.planner-day-header {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--planner-border);
+  margin-bottom: 16px;
+}
+.planner-day-header b {
+  color: var(--planner-accent-strong);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
+.time-grid-container {
+  display: flex;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin-right: -12px; /* compensate for scrollbar */
+  padding-right: 12px;
+}
+
+.time-grid-axis {
+  width: 50px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 1020px; /* 17 hours * 60px */
+}
+
+.time-slot-label {
+  height: 60px;
+  flex-shrink: 0;
+  position: relative;
+  top: -8px;
+  font-size: 11px;
+  color: var(--planner-muted);
+  text-align: right;
+  padding-right: 12px;
+  user-select: none;
+}
+
+.time-grid-content {
+  flex: 1;
+  position: relative;
+  min-height: 1020px;
+  background-image: linear-gradient(to bottom, var(--planner-border) 1px, transparent 1px);
+  background-size: 100% 60px;
+}
+
+.time-grid-line {
+  /* handled by background-image above, can be used for extra styling if needed */
+  display: none; 
+}
+
+.time-grid-empty {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: var(--planner-surface);
+  padding: 32px;
+  border-radius: 16px;
+  border: 1px solid var(--planner-border);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.04);
+}
+.empty-state-card .empty-state-icon {
+  color: var(--planner-accent);
+  margin-bottom: 12px;
+  background: var(--planner-wash);
+  padding: 12px;
+  border-radius: 50%;
+}
+.empty-state-card h3 {
+  color: var(--planner-ink);
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+.empty-state-card p {
+  color: var(--planner-muted);
+  font-size: 13px;
+  margin-bottom: 20px;
+  max-width: 260px;
+  line-height: 1.4;
+}
+
+.time-grid-event-wrap {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  z-index: 10;
+  padding-bottom: 2px;
+}
+
+.time-grid-event-wrap .planner-event {
+  height: 100%;
+  margin: 0;
+  border-left-width: 4px;
+  border-left-style: solid;
+  border-radius: 6px;
+  padding: 8px 34px 8px 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  overflow: hidden;
+  border: 1px solid var(--planner-border);
+  border-left-width: 4px;
+  min-width: 0;
+}
+
+.planner-event {
+  min-width: 0;
+}
+
+.planner-event-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin-bottom: 4px;
+  padding-right: 20px;
+  min-width: 0;
+}
+
+.planner-event-header b {
+  font-size: 12px;
+  color: var(--planner-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.planner-event-header span {
+  font-size: 10px;
+  color: var(--planner-accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.planner-event-details {
+  font-size: 11px;
+  color: var(--planner-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.event-edit-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.planner-event:hover .event-edit-btn {
+  opacity: 1;
+}
+
+.current-time-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--planner-accent);
+  z-index: 20;
+  pointer-events: none;
+}
+.current-time-dot {
+  position: absolute;
+  left: -4px;
+  top: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--planner-accent);
+}
+
+.planner-chat-head-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.planner-chat-icon {
+  color: var(--planner-accent);
+}
+
+.planner-chat-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 0 12px;
+}
+.planner-chat-suggestions button {
+  text-align: left;
+  background: var(--planner-surface);
+  border: 1px solid var(--planner-border);
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: var(--planner-accent-strong);
+  font-size: 12px;
+  transition: all 150ms ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+.planner-chat-suggestions button:hover {
+  background: var(--planner-wash);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.04);
+}
+
+.week-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.week-day-empty {
+  text-align: center;
+  color: var(--planner-muted);
+  font-size: 11px;
+  padding: 24px 0;
+  background: rgba(255,255,255,0.4);
+  border-radius: 8px;
+  border: 1px dashed var(--planner-border);
 }
 
 @media (max-width: 1100px) {

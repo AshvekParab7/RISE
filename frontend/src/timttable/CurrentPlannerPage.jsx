@@ -23,8 +23,35 @@ import {
   writeLocalPlannerEvents,
 } from "./localPlanner";
 
+function CurrentTimeIndicator({ selectedDay }) {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
+  
+  if (selectedDay !== dateKey(now)) return null;
+  
+  const hr = now.getHours();
+  const min = now.getMinutes();
+  if (hr < 7 || hr > 23) return null;
+  
+  const top = ((hr - 7) * 60) + min;
+  
+  return (
+    <div className="current-time-line" style={{ top: `${top}px` }}>
+      <div className="current-time-dot" />
+    </div>
+  );
+}
+
+
 const useToast = () => ({
-  confirm: async (message) => !message || window.confirm(message),
+  confirm: async (options) => {
+    if (!options) return false;
+    const text = typeof options === "string" ? options : options.message;
+    return window.confirm(text);
+  }
 });
 const useToastError = (initial) => useState(initial);
 
@@ -186,27 +213,29 @@ function EventForm({ event, subjects, onCancel, onSave, saving }) {
 
 function EventCard({ event, onEdit, onDelete }) {
   return (
-    <div className="planner-event" style={{ borderLeftColor: event.color }}>
+    <div className="planner-event" style={{ borderLeftColor: event.color, backgroundColor: `${event.color}0A` }}>
       <button
         className="event-delete"
-        onClick={() => onDelete(event)}
+        onClick={(e) => { e.stopPropagation(); onDelete(event); }}
         aria-label={`Delete ${event.title}`}
       >
         <Trash2 size={13} />
       </button>
-      <b>{event.title}</b>
-      <small>
+      <div className="planner-event-header">
+        <b>{event.title}</b>
+        <span>
+          {new Date(event.start_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
+      </div>
+      <small className="planner-event-details">
         {event.subtopics || "Study block"} · {event.duration_minutes} min
       </small>
-      <span>
-        {new Date(event.start_at).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </span>
       <button
-        className="icon-button"
-        onClick={() => onEdit(event)}
+        className="icon-button event-edit-btn"
+        onClick={(e) => { e.stopPropagation(); onEdit(event); }}
         aria-label={`Edit ${event.title}`}
       >
         <Pencil size={14} />
@@ -434,14 +463,16 @@ function PlannerChat({
   return (
     <section className="panel planner-chat">
       <div className="planner-chat-head">
-        <MessageCircle size={17} />
-        <div>
-          <b>RISE Planner</b>
-          <small>
-            {hasSession()
-              ? "Planning conversations stay in your account."
-              : "Local planning is saved in this browser."}
-          </small>
+        <div className="planner-chat-head-title">
+          <Sparkles size={18} className="planner-chat-icon" />
+          <div>
+            <b>RISE Planner</b>
+            <small>
+              {hasSession()
+                ? "Always synced to your account"
+                : "Local offline planner"}
+            </small>
+          </div>
         </div>
         <div className="planner-chat-head-actions">
           <button
@@ -492,6 +523,13 @@ function PlannerChat({
             {message.content}
           </div>
         ))}
+        {messages.length === 1 && !pending && !question && (
+          <div className="planner-chat-suggestions">
+            <button onClick={() => send("Plan my day")}>Plan my day</button>
+            <button onClick={() => send("Schedule DSA for 2 hours")}>Schedule DSA for 2 hours</button>
+            <button onClick={() => send("What should I study today?")}>What should I study today?</button>
+          </div>
+        )}
         {pending && (
           <div className="planner-chat-options">
             <button onClick={() => confirm()} disabled={loading}>
@@ -725,6 +763,38 @@ export default function PlannerPage({ plannerActions }) {
       setError(reason.message);
     }
   };
+  const clearPlan = async () => {
+    if (!shown.length) return;
+    if (
+      !(await confirm({
+        title: "Clear all events?",
+        message: `Are you sure you want to delete all ${shown.length} events in this view?`,
+        confirmLabel: "Clear all",
+      }))
+    )
+      return;
+      
+    if (!hasSession()) {
+      setEvents((items) => {
+        const next = items.filter((item) => !shown.includes(item));
+        writeLocalPlannerEvents(next);
+        return next;
+      });
+      window.dispatchEvent(new Event("rise:planner-updated"));
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await Promise.all(shown.map(event => plannerService.remove(event.id).catch(() => null)));
+      setEvents((items) => items.filter((item) => !shown.includes(item)));
+      window.dispatchEvent(new Event("rise:planner-updated"));
+    } catch (reason) {
+      setError(reason.message);
+    } finally {
+      setLoading(false);
+    }
+  };
   const createPlan = async (plan) => {
     const payloads = plan.map((item) => {
       const day = item.date || resolvePlanDay(item.day, weekDays, selectedDay);
@@ -808,8 +878,18 @@ export default function PlannerPage({ plannerActions }) {
         />
         <div className="planner-toolbar-actions">
           {plannerActions}
+          {shown.length > 0 && (
+            <button
+              className="button planner-add-btn"
+              onClick={clearPlan}
+              disabled={loading}
+              style={{ color: 'var(--red)', borderColor: 'rgba(239, 106, 106, 0.3)' }}
+            >
+              Reset plan
+            </button>
+          )}
           <button
-            className="button button-primary"
+            className="button button-primary planner-add-btn"
             onClick={() => setEditor({})}
           >
             <Plus size={16} />
@@ -823,45 +903,86 @@ export default function PlannerPage({ plannerActions }) {
             <div className="panel loading-state">Loading planner events...</div>
           ) : view === "day" ? (
             <div className="panel planner-day-view">
-              <div className="day-column planner-day-column">
+              <div className="planner-day-header">
                 <b>{dayLabel(selectedDay)}</b>
-                <div className="day-line" />
-                {shown.length ? (
-                  shown.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      onEdit={setEditor}
-                      onDelete={remove}
-                    />
-                  ))
-                ) : (
-                  <div className="empty-state">
-                    <Sparkles size={22} />
-                    <h3>No study blocks yet</h3>
-                    <p>Add an event or ask RISE Planner to propose one.</p>
-                  </div>
-                )}
+              </div>
+              
+              <div className="time-grid-container">
+                <div className="time-grid-axis">
+                  {Array.from({ length: 17 }, (_, i) => i + 7).map(hour => (
+                    <div key={hour} className="time-slot-label">
+                      {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                    </div>
+                  ))}
+                </div>
+                <div className="time-grid-content">
+                  {Array.from({ length: 17 }, (_, i) => i + 7).map(hour => (
+                    <div key={hour} className="time-grid-line" />
+                  ))}
+                  
+                  {shown.length === 0 && (
+                    <div className="time-grid-empty">
+                      <div className="empty-state-card">
+                        <div className="empty-state-icon"><Sparkles size={24} /></div>
+                        <h3>Your day is open</h3>
+                        <p>Add a study block or ask RISE Planner to build one for you.</p>
+                        <button className="button button-primary" onClick={() => setEditor({})}>
+                          <Plus size={16} /> Add event
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {shown.map((event) => {
+                    const start = new Date(event.start_at);
+                    let hr = start.getHours();
+                    const min = start.getMinutes();
+                    if (hr < 7) hr = 7; 
+                    if (hr > 23) hr = 23;
+                    
+                    const top = ((hr - 7) * 60) + min;
+                    const height = Math.max(event.duration_minutes, 30);
+                    
+                    return (
+                      <div className="time-grid-event-wrap" key={event.id} style={{ top: `${top}px`, height: `${height}px` }}>
+                        <EventCard
+                          event={event}
+                          onEdit={setEditor}
+                          onDelete={remove}
+                        />
+                      </div>
+                    );
+                  })}
+                  <CurrentTimeIndicator selectedDay={selectedDay} />
+                </div>
               </div>
             </div>
           ) : (
             <div className="panel week-grid planner-week-seven">
-              {weekDays.map((day) => (
-                <div className="day-column" key={day}>
-                  <b>{dayLabel(day)}</b>
-                  <div className="day-line" />
-                  {events
-                    .filter((event) => dateKey(event.start_at) === day)
-                    .map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        onEdit={setEditor}
-                        onDelete={remove}
-                      />
-                    ))}
-                </div>
-              ))}
+              {weekDays.map((day) => {
+                const dayEvents = events.filter((event) => dateKey(event.start_at) === day).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+                return (
+                  <div className="day-column" key={day}>
+                    <div className="planner-day-header">
+                      <b>{dayLabel(day)}</b>
+                    </div>
+                    <div className="week-day-events">
+                      {dayEvents.length > 0 ? (
+                        dayEvents.map((event) => (
+                          <EventCard
+                            key={event.id}
+                            event={event}
+                            onEdit={setEditor}
+                            onDelete={remove}
+                          />
+                        ))
+                      ) : (
+                        <div className="week-day-empty">No events</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </main>

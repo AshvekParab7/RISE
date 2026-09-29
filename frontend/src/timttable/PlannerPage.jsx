@@ -761,6 +761,13 @@ export default function PlannerPage() {
           day_end: "22:00",
         }),
       );
+      
+      setTimeout(() => {
+        document.querySelector(".adaptive-plan-preview")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 50);
     } catch (reason) {
       setError(reason.message);
     } finally {
@@ -781,6 +788,13 @@ export default function PlannerPage() {
       setPreview(null);
       await load();
       window.dispatchEvent(new Event("rise:planner-updated"));
+      
+      setTimeout(() => {
+        document.querySelector(".planner-page-shell")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 50);
     } catch (reason) {
       setError(reason.message);
     } finally {
